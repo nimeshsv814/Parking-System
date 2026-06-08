@@ -3,88 +3,136 @@ services:
     image: mongo:7
     container_name: smart-parking-mongo
     restart: unless-stopped
-    ports:
-      - "27017:27017"
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   auth-service:
     build: ./services/auth-service
     container_name: auth-service
+    restart: unless-stopped
     env_file:
       - ./services/auth-service/.env
     depends_on:
-      - mongo
-    ports:
-      - "4001:4001"
+      mongo:
+        condition: service_healthy
+    expose:
+      - "4001"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   parking-service:
     build: ./services/parking-service
     container_name: parking-service
+    restart: unless-stopped
     env_file:
       - ./services/parking-service/.env
     depends_on:
-      - mongo
-    ports:
-      - "4002:4002"
+      mongo:
+        condition: service_healthy
+    expose:
+      - "4002"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   booking-service:
     build: ./services/booking-service
     container_name: booking-service
+    restart: unless-stopped
     env_file:
       - ./services/booking-service/.env
     depends_on:
-      - mongo
-      - parking-service
-      - notification-service
-    ports:
-      - "4003:4003"
+      mongo:
+        condition: service_healthy
+      parking-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+    expose:
+      - "4003"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   payment-service:
     build: ./services/payment-service
     container_name: payment-service
+    restart: unless-stopped
     env_file:
       - ./services/payment-service/.env
     depends_on:
-      - mongo
-      - booking-service
-      - notification-service
-    ports:
-      - "4004:4004"
+      mongo:
+        condition: service_healthy
+      booking-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+    expose:
+      - "4004"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4004/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   scheduler-service:
     build: ./services/scheduler-service
     container_name: scheduler-service
+    restart: unless-stopped
     env_file:
       - ./services/scheduler-service/.env
     depends_on:
-      - booking-service
-    ports:
-      - "4005:4005"
+      booking-service:
+        condition: service_healthy
+    expose:
+      - "4005"
 
   notification-service:
     build: ./services/notification-service
     container_name: notification-service
+    restart: unless-stopped
     env_file:
       - ./services/notification-service/.env
     depends_on:
-      - mongo
-    ports:
-      - "4006:4006"
+      mongo:
+        condition: service_healthy
+    expose:
+      - "4006"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4006/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   frontend:
     build: ./frontend
     container_name: smart-parking-frontend
-    env_file:
-      - ./frontend/.env
+    restart: unless-stopped
     depends_on:
-      - auth-service
-      - parking-service
-      - booking-service
-      - payment-service
-      - notification-service
+      auth-service:
+        condition: service_healthy
+      parking-service:
+        condition: service_healthy
+      booking-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
     ports:
-      - "5173:5173"
+      - "80:80"
 
 volumes:
   mongo_data:

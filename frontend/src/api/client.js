@@ -14,11 +14,11 @@ const createClient = (baseURL) => {
   return client;
 };
 
-export const authApi = createClient(import.meta.env.VITE_AUTH_SERVICE_URL);
-export const parkingApi = createClient(import.meta.env.VITE_PARKING_SERVICE_URL);
-export const bookingApi = createClient(import.meta.env.VITE_BOOKING_SERVICE_URL);
-export const paymentApi = createClient(import.meta.env.VITE_PAYMENT_SERVICE_URL);
-export const notificationApi = createClient(import.meta.env.VITE_NOTIFICATION_SERVICE_URL);
+export const authApi = createClient(import.meta.env.VITE_AUTH_SERVICE_URL || "/api/auth");
+export const parkingApi = createClient(import.meta.env.VITE_PARKING_SERVICE_URL || "/api/parking");
+export const bookingApi = createClient(import.meta.env.VITE_BOOKING_SERVICE_URL || "/api/booking");
+export const paymentApi = createClient(import.meta.env.VITE_PAYMENT_SERVICE_URL || "/api/payment");
+export const notificationApi = createClient(import.meta.env.VITE_NOTIFICATION_SERVICE_URL || "/api/notification");
 
 export const getApiError = (error) =>
   error?.response?.data?.message || error?.response?.data?.error || error?.message || "Something went wrong";
