@@ -177,9 +177,89 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    location = /booking/book-slot {
+        rewrite ^ /bookings break;
+        proxy_pass http://127.0.0.1:4003;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /api/booking/book-slot {
+        rewrite ^ /bookings break;
+        proxy_pass http://127.0.0.1:4003;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     location /api/booking/ {
         rewrite ^/api/booking/(.*)$ /$1 break;
         proxy_pass http://127.0.0.1:4003;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /payment/create-order {
+        rewrite ^ /payments/razorpay/order break;
+        proxy_pass http://127.0.0.1:4004;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /api/payment/create-order {
+        rewrite ^ /payments/razorpay/order break;
+        proxy_pass http://127.0.0.1:4004;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /payment/verify-payment {
+        rewrite ^ /payments/razorpay/verify break;
+        proxy_pass http://127.0.0.1:4004;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /api/payment/verify-payment {
+        rewrite ^ /payments/razorpay/verify break;
+        proxy_pass http://127.0.0.1:4004;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /payment/process-payment {
+        rewrite ^ /payments/process break;
+        proxy_pass http://127.0.0.1:4004;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /api/payment/process-payment {
+        rewrite ^ /payments/process break;
+        proxy_pass http://127.0.0.1:4004;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -293,6 +373,14 @@ resource "aws_autoscaling_group" "app" {
   launch_template {
     id      = aws_launch_template.app.id
     version = "$Latest"
+  }
+
+  instance_refresh {
+    strategy = "Rolling"
+
+    preferences {
+      min_healthy_percentage = 50
+    }
   }
 
   tag {
