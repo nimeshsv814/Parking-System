@@ -1,18 +1,15 @@
-resource "aws_instance" "web-server" {
-  ami           = var.ami_id
-  instance_type = "t2.micro"
+resource "aws_launch_template" "web" {
+  name_prefix   = "smart-parking-web-"
+  image_id      = var.ami_id
+  instance_type = var.web_instance_type
   key_name      = var.key_name
 
-  subnet_id = aws_subnet.public_subnets["web-public-subnet-1a"].id
+  network_interfaces {
+    associate_public_ip_address = true
+    security_groups             = [aws_security_group.web-sg.id]
+  }
 
-  vpc_security_group_ids = [
-    aws_security_group.web-sg.id
-  ]
-
-  associate_public_ip_address = true
-  user_data_replace_on_change = true
-
-  user_data = <<-EOF
+  user_data = base64encode(<<-EOF
 #!/bin/bash
 set -euxo pipefail
 
@@ -158,8 +155,35 @@ docker run -d \
   "$FRONTEND_IMAGE"
 
 EOF
+  )
 
-  tags = {
-    Name = "Web-server"
+  tag_specifications {
+    resource_type = "instance"
+
+    tags = {
+      Name = "web-server"
+    }
+  }
+}
+
+resource "aws_autoscaling_group" "web" {
+  name                      = "smart-parking-web-asg"
+  min_size                  = var.web_min_size
+  max_size                  = var.web_max_size
+  desired_capacity          = var.web_desired_capacity
+  vpc_zone_identifier       = [for s in aws_subnet.public_subnets : s.id]
+  target_group_arns         = [aws_lb_target_group.web_tg.arn]
+  health_check_type         = "ELB"
+  health_check_grace_period = 300
+
+  launch_template {
+    id      = aws_launch_template.web.id
+    version = "$Latest"
+  }
+
+  tag {
+    key                 = "Name"
+    value               = "web-server"
+    propagate_at_launch = true
   }
 }

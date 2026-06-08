@@ -77,6 +77,46 @@ variable "key_name" {
   default = "three-tier-arch"
 }
 
+variable "web_instance_type" {
+  type    = string
+  default = "t2.micro"
+}
+
+variable "web_min_size" {
+  type    = number
+  default = 2
+}
+
+variable "web_max_size" {
+  type    = number
+  default = 4
+}
+
+variable "web_desired_capacity" {
+  type    = number
+  default = 2
+}
+
+variable "app_instance_type" {
+  type    = string
+  default = "t2.micro"
+}
+
+variable "app_min_size" {
+  type    = number
+  default = 2
+}
+
+variable "app_max_size" {
+  type    = number
+  default = 4
+}
+
+variable "app_desired_capacity" {
+  type    = number
+  default = 2
+}
+
 variable "frontend_image" {
   type    = string
   default = "docker.io/nimeshsv814/tf-frontend:latest"

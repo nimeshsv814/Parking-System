@@ -1,18 +1,15 @@
-resource "aws_instance" "backend_server" {
-
-  ami           = var.ami_id
-  instance_type = "t2.micro"
+resource "aws_launch_template" "app" {
+  name_prefix   = "smart-parking-app-"
+  image_id      = var.ami_id
+  instance_type = var.app_instance_type
   key_name      = var.key_name
 
-  subnet_id = aws_subnet.app_private_subnets["app-private-subnet-1a"].id
+  network_interfaces {
+    associate_public_ip_address = false
+    security_groups             = [aws_security_group.app-sg.id]
+  }
 
-  vpc_security_group_ids = [
-    aws_security_group.app-sg.id
-  ]
-
-  user_data_replace_on_change = true
-
-  user_data = <<-EOF
+  user_data = base64encode(<<-EOF
 #!/bin/bash
 set -euxo pipefail
 
@@ -269,9 +266,39 @@ sleep 10
 } > /opt/smart-parking-deploy-status.txt
 
 EOF
+  )
 
-  tags = {
-    Name = "backend-server"
+  tag_specifications {
+    resource_type = "instance"
+
+    tags = {
+      Name = "backend-server"
+    }
+  }
+}
+
+resource "aws_autoscaling_group" "app" {
+  name                = "smart-parking-app-asg"
+  min_size            = var.app_min_size
+  max_size            = var.app_max_size
+  desired_capacity    = var.app_desired_capacity
+  vpc_zone_identifier = [for s in aws_subnet.app_private_subnets : s.id]
+  target_group_arns = concat(
+    [aws_lb_target_group.app_tg.arn],
+    [for tg in aws_lb_target_group.service_tg : tg.arn]
+  )
+  health_check_type         = "ELB"
+  health_check_grace_period = 300
+
+  launch_template {
+    id      = aws_launch_template.app.id
+    version = "$Latest"
+  }
+
+  tag {
+    key                 = "Name"
+    value               = "backend-server"
+    propagate_at_launch = true
   }
 }
 
@@ -313,12 +340,6 @@ resource "aws_lb_listener" "external_http_listener" {
     type             = "forward"
     target_group_arn = aws_lb_target_group.web_tg.arn
   }
-}
-
-resource "aws_lb_target_group_attachment" "web" {
-  target_group_arn = aws_lb_target_group.web_tg.arn
-  target_id        = aws_instance.web-server.id
-  port             = 80
 }
 
 resource "aws_lb" "internal_alb" {
@@ -426,18 +447,4 @@ resource "aws_lb_listener_rule" "service_routes" {
       values = each.value.paths
     }
   }
-}
-
-resource "aws_lb_target_group_attachment" "app" {
-  target_group_arn = aws_lb_target_group.app_tg.arn
-  target_id        = aws_instance.backend_server.id
-  port             = 80
-}
-
-resource "aws_lb_target_group_attachment" "service" {
-  for_each = local.internal_services
-
-  target_group_arn = aws_lb_target_group.service_tg[each.key].arn
-  target_id        = aws_instance.backend_server.id
-  port             = 80
 }
