@@ -16,26 +16,30 @@ resource "aws_instance" "backend_server" {
 #!/bin/bash
 set -euxo pipefail
 
-APP_REPO="https://github.com/nimeshsv814/Parking-System.git"
-APP_DIR="/opt/smart-parking"
-SERVICE_USER="smartparking"
 DB_HOST="${aws_instance.database.private_ip}"
+AUTH_SERVICE_IMAGE="${var.auth_service_image}"
+PARKING_SERVICE_IMAGE="${var.parking_service_image}"
+BOOKING_SERVICE_IMAGE="${var.booking_service_image}"
+PAYMENT_SERVICE_IMAGE="${var.payment_service_image}"
+SCHEDULER_SERVICE_IMAGE="${var.scheduler_service_image}"
+NOTIFICATION_SERVICE_IMAGE="${var.notification_service_image}"
+ENV_DIR="/opt/smart-parking-env"
+APP_NETWORK="smart-parking-app"
 
 export DEBIAN_FRONTEND=noninteractive
 
 apt-get update -y
-apt-get install -y ca-certificates curl git nginx
+apt-get install -y docker.io nginx
 
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt-get install -y nodejs
+systemctl enable docker
+systemctl start docker
+systemctl enable nginx
+systemctl start nginx
 
-id -u "$SERVICE_USER" >/dev/null 2>&1 || useradd --system --create-home --shell /usr/sbin/nologin "$SERVICE_USER"
+mkdir -p "$ENV_DIR"
+docker network create "$APP_NETWORK" || true
 
-rm -rf "$APP_DIR"
-git clone "$APP_REPO" "$APP_DIR"
-chown -R "$SERVICE_USER:$SERVICE_USER" "$APP_DIR"
-
-cat <<EOT > "$APP_DIR/services/auth-service/.env"
+cat <<EOT > "$ENV_DIR/auth-service.env"
 PORT=4001
 MONGO_URI=mongodb://$DB_HOST:27017/authdb
 JWT_SECRET=smartparking_super_secret
@@ -47,7 +51,7 @@ SEED_USER_EMAIL=user@parking.com
 SEED_USER_PASSWORD=User@123
 EOT
 
-cat <<EOT > "$APP_DIR/services/parking-service/.env"
+cat <<EOT > "$ENV_DIR/parking-service.env"
 PORT=4002
 MONGO_URI=mongodb://$DB_HOST:27017/parkingdb
 JWT_SECRET=smartparking_super_secret
@@ -55,38 +59,38 @@ CORS_ORIGIN=*
 INTERNAL_API_KEY=smartparking_internal_key
 EOT
 
-cat <<EOT > "$APP_DIR/services/booking-service/.env"
+cat <<EOT > "$ENV_DIR/booking-service.env"
 PORT=4003
 MONGO_URI=mongodb://$DB_HOST:27017/bookingdb
 JWT_SECRET=smartparking_super_secret
 CORS_ORIGIN=*
-PARKING_SERVICE_URL=http://127.0.0.1:4002
-NOTIFICATION_SERVICE_URL=http://127.0.0.1:4006
+PARKING_SERVICE_URL=http://parking-service:4002
+NOTIFICATION_SERVICE_URL=http://notification-service:4006
 INTERNAL_API_KEY=smartparking_internal_key
 BOOKING_HOLD_MINUTES=10
 EOT
 
-cat <<EOT > "$APP_DIR/services/payment-service/.env"
+cat <<EOT > "$ENV_DIR/payment-service.env"
 PORT=4004
 MONGO_URI=mongodb://$DB_HOST:27017/paymentdb
 JWT_SECRET=smartparking_super_secret
 CORS_ORIGIN=*
-BOOKING_SERVICE_URL=http://127.0.0.1:4003
-NOTIFICATION_SERVICE_URL=http://127.0.0.1:4006
+BOOKING_SERVICE_URL=http://booking-service:4003
+NOTIFICATION_SERVICE_URL=http://notification-service:4006
 INTERNAL_API_KEY=smartparking_internal_key
 RAZORPAY_KEY_ID=rzp_test_ShFFMxa9JkqmZu
 RAZORPAY_KEY_SECRET=1I4sLVIvCMWSTUlM5lCZm71j
 RAZORPAY_CURRENCY=INR
 EOT
 
-cat <<EOT > "$APP_DIR/services/scheduler-service/.env"
+cat <<EOT > "$ENV_DIR/scheduler-service.env"
 PORT=4005
-BOOKING_SERVICE_URL=http://127.0.0.1:4003
+BOOKING_SERVICE_URL=http://booking-service:4003
 INTERNAL_API_KEY=smartparking_internal_key
 CRON_SCHEDULE=* * * * *
 EOT
 
-cat <<EOT > "$APP_DIR/services/notification-service/.env"
+cat <<EOT > "$ENV_DIR/notification-service.env"
 PORT=4006
 MONGO_URI=mongodb://$DB_HOST:27017/notificationdb
 JWT_SECRET=smartparking_super_secret
@@ -94,54 +98,30 @@ CORS_ORIGIN=*
 INTERNAL_API_KEY=smartparking_internal_key
 EOT
 
-install_service_dependencies() {
-  service_dir="$1"
-  cd "$service_dir"
-  if [ -f package-lock.json ]; then
-    npm ci --omit=dev
-  else
-    npm install --omit=dev
-  fi
-  chown -R "$SERVICE_USER:$SERVICE_USER" "$service_dir"
+run_service_container() {
+  container_name="$1"
+  image="$2"
+  env_file="$3"
+  host_port="$4"
+  container_port="$5"
+
+  docker pull "$image"
+  docker rm -f "$container_name" || true
+  docker run -d \
+    --name "$container_name" \
+    --restart unless-stopped \
+    --network "$APP_NETWORK" \
+    --env-file "$env_file" \
+    -p "127.0.0.1:$host_port:$container_port" \
+    "$image"
 }
 
-install_service_dependencies "$APP_DIR/services/auth-service"
-install_service_dependencies "$APP_DIR/services/parking-service"
-install_service_dependencies "$APP_DIR/services/booking-service"
-install_service_dependencies "$APP_DIR/services/payment-service"
-install_service_dependencies "$APP_DIR/services/scheduler-service"
-install_service_dependencies "$APP_DIR/services/notification-service"
-
-create_node_service() {
-  service_name="$1"
-  service_dir="$2"
-
-  cat <<SERVICE > "/etc/systemd/system/$service_name.service"
-[Unit]
-Description=Smart Parking $service_name
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=$SERVICE_USER
-WorkingDirectory=$service_dir
-EnvironmentFile=$service_dir/.env
-ExecStart=/usr/bin/node src/index.js
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-SERVICE
-}
-
-create_node_service "auth-service" "$APP_DIR/services/auth-service"
-create_node_service "parking-service" "$APP_DIR/services/parking-service"
-create_node_service "booking-service" "$APP_DIR/services/booking-service"
-create_node_service "payment-service" "$APP_DIR/services/payment-service"
-create_node_service "scheduler-service" "$APP_DIR/services/scheduler-service"
-create_node_service "notification-service" "$APP_DIR/services/notification-service"
+run_service_container "auth-service" "$AUTH_SERVICE_IMAGE" "$ENV_DIR/auth-service.env" 4001 4001
+run_service_container "parking-service" "$PARKING_SERVICE_IMAGE" "$ENV_DIR/parking-service.env" 4002 4002
+run_service_container "notification-service" "$NOTIFICATION_SERVICE_IMAGE" "$ENV_DIR/notification-service.env" 4006 4006
+run_service_container "booking-service" "$BOOKING_SERVICE_IMAGE" "$ENV_DIR/booking-service.env" 4003 4003
+run_service_container "payment-service" "$PAYMENT_SERVICE_IMAGE" "$ENV_DIR/payment-service.env" 4004 4004
+run_service_container "scheduler-service" "$SCHEDULER_SERVICE_IMAGE" "$ENV_DIR/scheduler-service.env" 4005 4005
 
 rm -f /etc/nginx/sites-enabled/default
 
@@ -261,18 +241,19 @@ nginx -t
 systemctl enable nginx
 systemctl restart nginx
 
-systemctl daemon-reload
-systemctl enable auth-service parking-service booking-service payment-service scheduler-service notification-service
-systemctl restart auth-service parking-service notification-service
-sleep 10
-systemctl restart booking-service payment-service scheduler-service
-
 sleep 10
 {
   echo "Smart Parking app-tier deployment status"
   date -Is
   echo
-  systemctl --no-pager --full status auth-service parking-service booking-service payment-service scheduler-service notification-service || true
+  docker ps --filter "network=$APP_NETWORK"
+  echo
+  docker logs --tail 50 auth-service || true
+  docker logs --tail 50 parking-service || true
+  docker logs --tail 50 booking-service || true
+  docker logs --tail 50 payment-service || true
+  docker logs --tail 50 scheduler-service || true
+  docker logs --tail 50 notification-service || true
   echo
   echo "Local route health checks:"
   curl -fsS http://127.0.0.1/auth/health || true

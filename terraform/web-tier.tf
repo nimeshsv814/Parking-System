@@ -16,41 +16,17 @@ resource "aws_instance" "web-server" {
 #!/bin/bash
 set -euxo pipefail
 
-APP_REPO="https://github.com/nimeshsv814/Parking-System.git"
-APP_DIR="/opt/smart-parking"
-WEB_ROOT="/var/www/smart-parking"
+FRONTEND_IMAGE="${var.frontend_image}"
 
 export DEBIAN_FRONTEND=noninteractive
 
 apt-get update -y
-apt-get install -y ca-certificates curl git nginx
+apt-get install -y docker.io nginx
 
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt-get install -y nodejs
-
-rm -rf "$APP_DIR"
-git clone "$APP_REPO" "$APP_DIR"
-
-cat <<ENVFILE > "$APP_DIR/frontend/.env"
-VITE_AUTH_SERVICE_URL=/api/auth
-VITE_PARKING_SERVICE_URL=/api/parking
-VITE_BOOKING_SERVICE_URL=/api/booking
-VITE_PAYMENT_SERVICE_URL=/api/payment
-VITE_NOTIFICATION_SERVICE_URL=/api/notification
-ENVFILE
-
-cd "$APP_DIR/frontend"
-if [ -f package-lock.json ]; then
-  npm ci
-else
-  npm install
-fi
-npm run build
-
-rm -rf "$WEB_ROOT"
-mkdir -p "$WEB_ROOT"
-cp -R "$APP_DIR/frontend/dist/." "$WEB_ROOT/"
-chown -R www-data:www-data "$WEB_ROOT"
+systemctl enable docker
+systemctl start docker
+systemctl enable nginx
+systemctl start nginx
 
 rm -f /etc/nginx/sites-enabled/default
 
@@ -59,11 +35,26 @@ server {
     listen 80 default_server;
     server_name _;
 
-    root /var/www/smart-parking;
-    index index.html;
+    location /auth/ {
+        proxy_pass http://${aws_lb.internal_alb.dns_name};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 
     location /api/auth/ {
         rewrite ^/api/auth/(.*)$ /auth/$1 break;
+        proxy_pass http://${aws_lb.internal_alb.dns_name};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /parking/ {
         proxy_pass http://${aws_lb.internal_alb.dns_name};
         proxy_http_version 1.1;
         proxy_set_header Host $host;
@@ -82,6 +73,15 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    location /booking/ {
+        proxy_pass http://${aws_lb.internal_alb.dns_name};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     location /api/booking/ {
         rewrite ^/api/booking/(.*)$ /booking/$1 break;
         proxy_pass http://${aws_lb.internal_alb.dns_name};
@@ -92,8 +92,26 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    location /payment/ {
+        proxy_pass http://${aws_lb.internal_alb.dns_name};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     location /api/payment/ {
         rewrite ^/api/payment/(.*)$ /payment/$1 break;
+        proxy_pass http://${aws_lb.internal_alb.dns_name};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /notification/ {
         proxy_pass http://${aws_lb.internal_alb.dns_name};
         proxy_http_version 1.1;
         proxy_set_header Host $host;
@@ -118,14 +136,26 @@ server {
     }
 
     location / {
-        try_files $uri $uri/ /index.html;
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 NGINXCONF
 
 nginx -t
-systemctl enable nginx
-systemctl restart nginx
+systemctl reload nginx
+
+docker pull "$FRONTEND_IMAGE"
+docker rm -f smart-parking-frontend || true
+docker run -d \
+  --name smart-parking-frontend \
+  --restart unless-stopped \
+  -p 127.0.0.1:8080:80 \
+  "$FRONTEND_IMAGE"
 
 EOF
 

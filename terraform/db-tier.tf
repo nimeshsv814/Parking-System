@@ -16,22 +16,25 @@ resource "aws_instance" "database" {
 #!/bin/bash
 set -euxo pipefail
 
+MONGODB_IMAGE="${var.mongodb_image}"
+
 export DEBIAN_FRONTEND=noninteractive
 
 apt-get update -y
-apt-get install -y ca-certificates curl gnupg
+apt-get install -y docker.io
 
-install -d -m 0755 /etc/apt/keyrings
-curl -fsSL https://pgp.mongodb.com/server-7.0.asc | gpg --dearmor -o /etc/apt/keyrings/mongodb-server-7.0.gpg
-echo "deb [ arch=amd64,arm64 signed-by=/etc/apt/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" > /etc/apt/sources.list.d/mongodb-org-7.0.list
+systemctl enable docker
+systemctl start docker
 
-apt-get update -y
-apt-get install -y mongodb-org
-
-sed -i 's/^  bindIp: .*/  bindIp: 0.0.0.0/' /etc/mongod.conf
-
-systemctl enable mongod
-systemctl restart mongod
+docker pull "$MONGODB_IMAGE"
+docker volume create smart-parking-mongo-data || true
+docker rm -f mongodb || true
+docker run -d \
+  --name mongodb \
+  --restart unless-stopped \
+  -p 27017:27017 \
+  -v smart-parking-mongo-data:/data/db \
+  "$MONGODB_IMAGE"
 
 EOF
 

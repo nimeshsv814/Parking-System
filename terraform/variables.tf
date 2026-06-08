@@ -76,3 +76,43 @@ variable "key_name" {
   type    = string
   default = "three-tier-arch"
 }
+
+variable "frontend_image" {
+  type    = string
+  default = "docker.io/nimeshsv814/tf-frontend:latest"
+}
+
+variable "auth_service_image" {
+  type    = string
+  default = "docker.io/nimeshsv814/tf-auth-service:latest"
+}
+
+variable "parking_service_image" {
+  type    = string
+  default = "docker.io/nimeshsv814/tf-parking-service:latest"
+}
+
+variable "booking_service_image" {
+  type    = string
+  default = "docker.io/nimeshsv814/tf-booking-service:latest"
+}
+
+variable "payment_service_image" {
+  type    = string
+  default = "docker.io/nimeshsv814/tf-payment-service:latest"
+}
+
+variable "scheduler_service_image" {
+  type    = string
+  default = "docker.io/nimeshsv814/tf-scheduler-service:latest"
+}
+
+variable "notification_service_image" {
+  type    = string
+  default = "docker.io/nimeshsv814/tf-notification-service:latest"
+}
+
+variable "mongodb_image" {
+  type    = string
+  default = "mongo:7"
+}
