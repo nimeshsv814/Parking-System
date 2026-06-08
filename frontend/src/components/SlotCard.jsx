@@ -1,3 +1,5 @@
+import { formatRupees } from "../utils/money";
+
 const statusStyles = {
   available: {
     dot: "bg-mint",
@@ -38,7 +40,7 @@ export const SlotCard = ({ slot, action, actionLabel, disabled }) => {
             <span className={`status-dot ${style.dot}`} />
             <span className="text-sm text-slate">Real-time status</span>
           </div>
-          <p className="text-lg font-semibold">Rs {slot.price}</p>
+          <p className="text-lg font-semibold">{formatRupees(slot.price)}</p>
         </div>
       </div>
 

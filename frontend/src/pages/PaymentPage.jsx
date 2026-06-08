@@ -4,6 +4,7 @@ import { bookingApi, getApiError, paymentApi } from "../api/client";
 import { Loader } from "../components/Loader";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import { formatRupees } from "../utils/money";
 
 const loadRazorpayCheckout = () =>
   new Promise((resolve, reject) => {
@@ -140,7 +141,7 @@ export const PaymentPage = () => {
           </div>
           <div className="rounded-3xl bg-white/70 p-5">
             <p className="text-sm text-slate">Amount</p>
-            <p className="mt-2 text-xl font-semibold">Rs {booking.amount}</p>
+            <p className="mt-2 text-xl font-semibold">{formatRupees(booking.amount)}</p>
           </div>
         </div>
       </section>
@@ -156,7 +157,7 @@ export const PaymentPage = () => {
             </p>
           </div>
           <button type="button" className="button-primary w-full" onClick={handlePayment} disabled={processing}>
-            {processing ? "Opening checkout..." : `Pay Rs ${booking.amount}`}
+            {processing ? "Opening checkout..." : `Pay ${formatRupees(booking.amount)}`}
           </button>
         </div>
       </section>

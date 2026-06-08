@@ -2,6 +2,12 @@ const Booking = require("../models/Booking");
 const { internalHeaders, notificationClient, parkingClient } = require("../config/http");
 
 const buildBookingId = () => `BKG-${Date.now()}${Math.floor(Math.random() * 1000)}`;
+const DEFAULT_BOOKING_AMOUNT = 50;
+
+const getAffordableAmount = (amount) => {
+  const numericAmount = Number(amount);
+  return Number.isFinite(numericAmount) && numericAmount > 0 ? numericAmount : DEFAULT_BOOKING_AMOUNT;
+};
 
 const sendNotification = async ({ recipientUserId, bookingId, type, message, metadata = {} }) => {
   try {
@@ -52,12 +58,14 @@ const createBooking = async (req, res) => {
       return res.status(409).json({ message: "Selected slot is not available" });
     }
 
+    const bookingAmount = getAffordableAmount(slot.price);
+
     const booking = await Booking.create({
       bookingId: buildBookingId(),
       userId: req.user.id,
       userEmail: req.user.email,
       slotId,
-      amount: slot.price,
+      amount: bookingAmount,
       status: "pending",
       timestamp: new Date(),
       expiresAt: new Date(Date.now() + Number(process.env.BOOKING_HOLD_MINUTES || 10) * 60 * 1000),
@@ -77,7 +85,7 @@ const createBooking = async (req, res) => {
       bookingId: booking.bookingId,
       type: "booking_pending",
       message: `Booking ${booking.bookingId} created for slot ${slotId}. Complete payment before expiration.`,
-      metadata: { slotId, amount: slot.price },
+      metadata: { slotId, amount: bookingAmount },
     });
 
     return res.status(201).json({ message: "Booking created", booking });

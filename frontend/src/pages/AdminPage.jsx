@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { bookingApi, getApiError, parkingApi } from "../api/client";
 import { Loader } from "../components/Loader";
 import { useToast } from "../context/ToastContext";
+import { DEFAULT_BOOKING_AMOUNT, formatRupees, getAffordableAmount } from "../utils/money";
 
 const emptySlotForm = {
   slotId: "",
   location: "",
-  price: 0,
+  price: DEFAULT_BOOKING_AMOUNT,
 };
 
 const statusOptions = ["available", "reserved", "occupied", "blocked"];
@@ -43,7 +44,7 @@ export const AdminPage = () => {
     event.preventDefault();
     try {
       setSubmitting(true);
-      await parkingApi.post("/slots", { ...slotForm, price: Number(slotForm.price) });
+      await parkingApi.post("/slots", { ...slotForm, price: getAffordableAmount(slotForm.price) });
       pushToast({ title: "Slot created", description: `${slotForm.slotId} is ready for booking.`, tone: "success" });
       setSlotForm(emptySlotForm);
       await loadAdminData();
@@ -95,7 +96,7 @@ export const AdminPage = () => {
             <input
               className="input-shell"
               type="number"
-              min="0"
+              min="1"
               placeholder="Price"
               value={slotForm.price}
               onChange={(event) => setSlotForm({ ...slotForm, price: event.target.value })}
@@ -117,7 +118,7 @@ export const AdminPage = () => {
                   <div>
                     <p className="text-lg font-semibold">{slot.slotId}</p>
                     <p className="text-sm text-slate">
-                      {slot.location} • Rs {slot.price}
+                      {slot.location} • {formatRupees(slot.price)}
                     </p>
                   </div>
                   <select
@@ -161,7 +162,7 @@ export const AdminPage = () => {
                   <td className="py-3 pr-4">{booking.userEmail}</td>
                   <td className="py-3 pr-4">{booking.slotId}</td>
                   <td className="py-3 pr-4 capitalize">{booking.status}</td>
-                  <td className="py-3 pr-4">Rs {booking.amount}</td>
+                  <td className="py-3 pr-4">{formatRupees(booking.amount)}</td>
                   <td className="py-3 pr-4">{new Date(booking.createdAt).toLocaleString()}</td>
                 </tr>
               ))}

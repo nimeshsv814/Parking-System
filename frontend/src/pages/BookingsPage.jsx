@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { bookingApi, getApiError } from "../api/client";
 import { Loader } from "../components/Loader";
 import { useToast } from "../context/ToastContext";
+import { formatRupees } from "../utils/money";
 
 const statusClasses = {
   pending: "bg-amber/20 text-amber-950",
@@ -69,7 +70,7 @@ export const BookingsPage = () => {
                   </span>
                 </div>
                 <p className="mt-2 text-sm text-slate">
-                  Slot {booking.slotId} • Rs {booking.amount} • Created {new Date(booking.createdAt).toLocaleString()}
+                  Slot {booking.slotId} • {formatRupees(booking.amount)} • Created {new Date(booking.createdAt).toLocaleString()}
                 </p>
                 {booking.status === "pending" && (
                   <p className="mt-2 text-sm text-amber-900">

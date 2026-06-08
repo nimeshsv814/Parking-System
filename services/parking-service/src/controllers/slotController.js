@@ -1,5 +1,12 @@
 const Slot = require("../models/Slot");
 
+const DEFAULT_SLOT_PRICE = 50;
+
+const getAffordablePrice = (price) => {
+  const numericPrice = Number(price);
+  return Number.isFinite(numericPrice) && numericPrice > 0 ? numericPrice : DEFAULT_SLOT_PRICE;
+};
+
 const listSlots = async (_req, res) => {
   const slots = await Slot.find().sort({ location: 1, slotId: 1 });
   return res.json(slots);
@@ -25,7 +32,7 @@ const createSlot = async (req, res) => {
     const slot = await Slot.create({
       slotId,
       location,
-      price,
+      price: getAffordablePrice(price),
       status: "available",
     });
 

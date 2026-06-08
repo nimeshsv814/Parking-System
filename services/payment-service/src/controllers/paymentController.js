@@ -5,6 +5,12 @@ const { bookingClient, internalHeaders, notificationClient } = require("../confi
 
 const buildPaymentId = () => `PAY-${Date.now()}${Math.floor(Math.random() * 1000)}`;
 const buildTransactionRef = () => `TXN-${Date.now()}${Math.floor(Math.random() * 10000)}`;
+const DEFAULT_BOOKING_AMOUNT = 50;
+
+const getAffordableAmount = (amount) => {
+  const numericAmount = Number(amount);
+  return Number.isFinite(numericAmount) && numericAmount > 0 ? numericAmount : DEFAULT_BOOKING_AMOUNT;
+};
 
 const getRazorpayClient = () => {
   if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
@@ -48,11 +54,13 @@ const processPayment = async (req, res) => {
       return res.status(400).json({ message: `Cannot pay for a ${booking.status} booking` });
     }
 
+    const payableAmount = getAffordableAmount(booking.amount);
+
     const payment = await Payment.create({
       paymentId: buildPaymentId(),
       bookingId,
       userId: booking.userId,
-      amount: booking.amount,
+      amount: payableAmount,
       method,
       status: simulateSuccess ? "success" : "failed",
       transactionRef: buildTransactionRef(),
@@ -69,7 +77,7 @@ const processPayment = async (req, res) => {
         bookingId,
         type: "payment_success",
         message: `Payment successful for booking ${bookingId}.`,
-        metadata: { amount: booking.amount, method, paymentId: payment.paymentId },
+        metadata: { amount: payableAmount, method, paymentId: payment.paymentId },
       });
       return res.json({
         message: "Payment successful",
@@ -88,7 +96,7 @@ const processPayment = async (req, res) => {
       bookingId,
       type: "payment_failed",
       message: `Payment failed for booking ${bookingId}.`,
-      metadata: { amount: booking.amount, method, paymentId: payment.paymentId },
+      metadata: { amount: payableAmount, method, paymentId: payment.paymentId },
     });
 
     return res.status(400).json({
@@ -135,7 +143,8 @@ const createRazorpayOrder = async (req, res) => {
   try {
     const { bookingId } = req.body;
     const booking = await getPayableBooking(req, bookingId);
-    const amountInPaise = Math.round(Number(booking.amount) * 100);
+    const payableAmount = getAffordableAmount(booking.amount);
+    const amountInPaise = Math.round(payableAmount * 100);
 
     if (!Number.isInteger(amountInPaise) || amountInPaise <= 0) {
       return res.status(400).json({ message: "Booking amount is invalid" });
@@ -176,7 +185,7 @@ const createRazorpayOrder = async (req, res) => {
       paymentId: order.receipt,
       bookingId,
       userId: booking.userId,
-      amount: booking.amount,
+      amount: payableAmount,
       method: "razorpay",
       status: "created",
       transactionRef: order.id,
@@ -215,6 +224,8 @@ const verifyRazorpayPayment = async (req, res) => {
       return res.status(404).json({ message: "Payment order not found" });
     }
 
+    const payableAmount = getAffordableAmount(payment.amount ?? booking.amount);
+
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
@@ -246,7 +257,7 @@ const verifyRazorpayPayment = async (req, res) => {
       type: "payment_success",
       message: `Payment successful for booking ${bookingId}.`,
       metadata: {
-        amount: booking.amount,
+        amount: payableAmount,
         method: "razorpay",
         paymentId: payment.paymentId,
         razorpayPaymentId: razorpay_payment_id,
