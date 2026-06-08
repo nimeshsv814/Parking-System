@@ -153,6 +153,7 @@ const createRazorpayOrder = async (req, res) => {
     const existingPayment = await Payment.findOne({
       bookingId,
       userId: booking.userId,
+      amount: { $gt: 0 },
       status: "created",
       razorpayOrderId: { $exists: true, $ne: null },
     }).sort({ createdAt: -1 });

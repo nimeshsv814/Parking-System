@@ -7,14 +7,30 @@ const getAffordablePrice = (price) => {
   return Number.isFinite(numericPrice) && numericPrice > 0 ? numericPrice : DEFAULT_SLOT_PRICE;
 };
 
+const normalizeSlotPrice = (slot) => {
+  const slotObject = slot.toObject ? slot.toObject() : slot;
+  return { ...slotObject, price: getAffordablePrice(slotObject.price) };
+};
+
+const repairZeroPrices = async () => {
+  await Slot.updateMany(
+    {
+      $or: [{ price: { $exists: false } }, { price: { $lte: 0 } }],
+    },
+    { $set: { price: DEFAULT_SLOT_PRICE } }
+  );
+};
+
 const listSlots = async (_req, res) => {
+  await repairZeroPrices();
   const slots = await Slot.find().sort({ location: 1, slotId: 1 });
-  return res.json(slots);
+  return res.json(slots.map(normalizeSlotPrice));
 };
 
 const listAvailableSlots = async (_req, res) => {
+  await repairZeroPrices();
   const slots = await Slot.find({ status: "available" }).sort({ location: 1, slotId: 1 });
-  return res.json(slots);
+  return res.json(slots.map(normalizeSlotPrice));
 };
 
 const createSlot = async (req, res) => {
@@ -70,11 +86,12 @@ const updateSlotStatus = async (req, res) => {
 };
 
 const getSlotInternal = async (req, res) => {
+  await repairZeroPrices();
   const slot = await Slot.findOne({ slotId: req.params.slotId });
   if (!slot) {
     return res.status(404).json({ message: "Slot not found" });
   }
-  return res.json(slot);
+  return res.json(normalizeSlotPrice(slot));
 };
 
 const reserveSlotInternal = async (req, res) => {

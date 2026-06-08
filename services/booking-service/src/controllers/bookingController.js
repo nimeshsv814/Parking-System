@@ -9,6 +9,20 @@ const getAffordableAmount = (amount) => {
   return Number.isFinite(numericAmount) && numericAmount > 0 ? numericAmount : DEFAULT_BOOKING_AMOUNT;
 };
 
+const normalizeBookingAmount = (booking) => {
+  const bookingObject = booking.toObject ? booking.toObject() : booking;
+  return { ...bookingObject, amount: getAffordableAmount(bookingObject.amount) };
+};
+
+const repairZeroAmounts = async () => {
+  await Booking.updateMany(
+    {
+      $or: [{ amount: { $exists: false } }, { amount: { $lte: 0 } }],
+    },
+    { $set: { amount: DEFAULT_BOOKING_AMOUNT } }
+  );
+};
+
 const sendNotification = async ({ recipientUserId, bookingId, type, message, metadata = {} }) => {
   try {
     await notificationClient.post(
@@ -95,12 +109,14 @@ const createBooking = async (req, res) => {
 };
 
 const getBookings = async (req, res) => {
+  await repairZeroAmounts();
   const query = req.user.role === "admin" ? {} : { userId: req.user.id };
   const bookings = await Booking.find(query).sort({ createdAt: -1 });
-  return res.json(bookings);
+  return res.json(bookings.map(normalizeBookingAmount));
 };
 
 const getBookingById = async (req, res) => {
+  await repairZeroAmounts();
   const booking = await Booking.findOne({ bookingId: req.params.bookingId });
   if (!booking) {
     return res.status(404).json({ message: "Booking not found" });
@@ -108,7 +124,7 @@ const getBookingById = async (req, res) => {
   if (req.user.role !== "admin" && booking.userId !== req.user.id) {
     return res.status(403).json({ message: "Access denied" });
   }
-  return res.json(booking);
+  return res.json(normalizeBookingAmount(booking));
 };
 
 const cancelBooking = async (req, res) => {
@@ -145,11 +161,12 @@ const cancelBooking = async (req, res) => {
 };
 
 const getBookingInternal = async (req, res) => {
+  await repairZeroAmounts();
   const booking = await Booking.findOne({ bookingId: req.params.bookingId });
   if (!booking) {
     return res.status(404).json({ message: "Booking not found" });
   }
-  return res.json(booking);
+  return res.json(normalizeBookingAmount(booking));
 };
 
 const confirmBookingInternal = async (req, res) => {
@@ -172,7 +189,7 @@ const confirmBookingInternal = async (req, res) => {
       bookingId: booking.bookingId,
       type: "booking_confirmed",
       message: `Booking ${booking.bookingId} has been confirmed.`,
-      metadata: { slotId: booking.slotId, amount: booking.amount },
+      metadata: { slotId: booking.slotId, amount: getAffordableAmount(booking.amount) },
     });
 
     return res.json({ message: "Booking confirmed", booking });
