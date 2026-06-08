@@ -21,17 +21,27 @@ const paymentSchema = new mongoose.Schema(
     },
     method: {
       type: String,
-      enum: ["card", "upi", "wallet"],
-      default: "card",
+      enum: ["razorpay", "card", "upi", "wallet"],
+      default: "razorpay",
     },
     status: {
       type: String,
-      enum: ["success", "failed"],
+      enum: ["created", "success", "failed"],
       required: true,
     },
     transactionRef: {
       type: String,
       required: true,
+    },
+    razorpayOrderId: {
+      type: String,
+      index: true,
+    },
+    razorpayPaymentId: {
+      type: String,
+    },
+    razorpaySignature: {
+      type: String,
     },
   },
   {

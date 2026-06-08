@@ -82,7 +82,58 @@ Cancels a pending or confirmed booking and releases the slot.
 
 ## Payment Service (`http://localhost:4004`)
 
+### `POST /payments/razorpay/order`
+Creates a Razorpay order for a pending booking. The response includes the public `keyId` needed by Razorpay Checkout.
+Request:
+```json
+{
+  "bookingId": "BKG-123456"
+}
+```
+Response:
+```json
+{
+  "keyId": "rzp_test_or_live_key",
+  "order": {
+    "id": "order_razorpay_id",
+    "amount": 8000,
+    "currency": "INR"
+  },
+  "booking": {
+    "bookingId": "BKG-123456",
+    "status": "pending"
+  }
+}
+```
+
+### `POST /payments/razorpay/verify`
+Verifies the Razorpay Checkout response signature. On success, the booking is confirmed.
+Request:
+```json
+{
+  "bookingId": "BKG-123456",
+  "razorpay_order_id": "order_razorpay_id",
+  "razorpay_payment_id": "pay_razorpay_id",
+  "razorpay_signature": "signature_from_checkout"
+}
+```
+Response:
+```json
+{
+  "message": "Payment verified",
+  "payment": {
+    "paymentId": "PAY-123456",
+    "status": "success"
+  },
+  "booking": {
+    "bookingId": "BKG-123456",
+    "status": "confirmed"
+  }
+}
+```
+
 ### `POST /payments/process`
+Legacy mock payment endpoint.
 Request:
 ```json
 {
