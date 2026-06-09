@@ -19,11 +19,12 @@ data "aws_cloudfront_origin_request_policy" "all_viewer" {
 }
 
 resource "aws_cloudfront_distribution" "this" {
-  enabled     = true
-  aliases     = var.enable_custom_domain ? [var.domain_name] : []
-  comment     = "Smart Parking CloudFront distribution"
-  price_class = var.price_class
-  web_acl_id  = var.web_acl_arn
+  enabled         = true
+  aliases         = var.enable_custom_domain ? [var.domain_name] : []
+  comment         = "Smart Parking CloudFront distribution"
+  is_ipv6_enabled = true
+  price_class     = var.price_class
+  web_acl_id      = var.web_acl_arn
 
   origin {
     domain_name = var.origin_domain_name

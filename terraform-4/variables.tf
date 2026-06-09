@@ -202,14 +202,45 @@ variable "sqs_notification_queue_arn" {
 
 variable "app_config_secret_arn" {
   type        = string
-  description = "Optional AWS Secrets Manager secret ARN containing app runtime secrets as JSON"
+  description = "Optional existing AWS Secrets Manager secret ARN containing app runtime secrets as JSON. When blank, Terraform can create one."
   default     = ""
+}
+
+variable "create_app_config_secret" {
+  type        = bool
+  description = "Create a Secrets Manager secret for app runtime secrets when app_config_secret_arn is blank"
+  default     = true
+}
+
+variable "app_config_secret_name" {
+  type        = string
+  description = "Name of the Secrets Manager secret Terraform creates for app runtime secrets"
+  default     = "smart-parking-app-config-tf4"
+}
+
+variable "app_config_secret_recovery_window_in_days" {
+  type        = number
+  description = "Recovery window in days before Terraform-deleted app config secrets are permanently deleted"
+  default     = 7
+}
+
+variable "create_app_config_initial_secret_version" {
+  type        = bool
+  description = "Create an initial secret value version from app_config_initial_secret_json. This stores the value in Terraform state."
+  default     = false
+}
+
+variable "app_config_initial_secret_json" {
+  type        = string
+  description = "Optional initial app config JSON secret string. Used only when create_app_config_initial_secret_version is true."
+  default     = ""
+  sensitive   = true
 }
 
 variable "enable_edge_stack" {
   type        = bool
   description = "Set true to create Route53, WAF, and CloudFront edge resources"
-  default     = false
+  default     = true
 }
 
 variable "enable_acm" {
@@ -238,19 +269,19 @@ variable "route53_hosted_zone_id" {
 variable "app_domain_name" {
   type        = string
   description = "Custom domain name for the app, for example parking.example.com"
-  default     = ""
+  default     = "quickslot.site"
 }
 
 variable "create_route53_hosted_zone" {
   type        = bool
   description = "Create a Route53 public hosted zone for route53_zone_domain_name"
-  default     = false
+  default     = true
 }
 
 variable "route53_zone_domain_name" {
   type        = string
   description = "Root domain for the Route53 hosted zone, for example quickslot.site"
-  default     = ""
+  default     = "quickslot.site"
 }
 
 variable "app_domain_subject_alternative_names" {
@@ -269,6 +300,12 @@ variable "cloudfront_create_ipv6_record" {
   type        = bool
   description = "Create Route53 AAAA alias record for CloudFront"
   default     = true
+}
+
+variable "create_cloudfront_route53_alias_record" {
+  type        = bool
+  description = "Create Route53 A/AAAA alias records pointing app_domain_name to CloudFront. Keep false when adding records manually."
+  default     = false
 }
 
 variable "waf_rate_limit" {

@@ -23,6 +23,11 @@ output "cloudfront_hosted_zone_id" {
   value       = try(module.cdn[0].hosted_zone_id, null)
 }
 
+output "waf_web_acl_arn" {
+  description = "WAF Web ACL ARN attached to CloudFront when edge stack is enabled"
+  value       = try(module.waf[0].web_acl_arn, null)
+}
+
 output "cloudfront_custom_domain_enabled" {
   description = "True only when Terraform is managing the CloudFront custom domain"
   value       = local.cloudfront_custom_domain_enabled
@@ -38,12 +43,27 @@ output "app_domain_route53_target" {
   value       = local.create_cloudfront_dns_record ? module.cdn[0].domain_name : null
 }
 
+output "cloudfront_route53_alias_record_created" {
+  description = "True when Terraform created the app_domain_name A/AAAA alias records to CloudFront"
+  value       = local.create_cloudfront_dns_record
+}
+
 output "route53_hosted_zone_id" {
   description = "Route53 hosted zone ID used by the edge stack"
-  value       = var.enable_edge_stack || var.create_route53_hosted_zone ? local.edge_hosted_zone_id : null
+  value       = var.enable_edge_stack ? local.edge_hosted_zone_id : null
 }
 
 output "route53_name_servers" {
   description = "Name servers to set at your domain registrar when Terraform creates the hosted zone"
   value       = try(aws_route53_zone.edge[0].name_servers, null)
+}
+
+output "app_config_secret_arn" {
+  description = "Secrets Manager ARN used by the app tier for runtime secrets"
+  value       = local.app_config_secret_arn != "" ? local.app_config_secret_arn : null
+}
+
+output "app_config_secret_name" {
+  description = "Secrets Manager secret name created by Terraform when create_app_config_secret is true"
+  value       = try(module.app_config_secret[0].secret_name, null)
 }

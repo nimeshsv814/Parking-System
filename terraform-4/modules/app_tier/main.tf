@@ -132,7 +132,7 @@ if [ -n "$APP_CONFIG_SECRET_ARN" ]; then
     --secret-id "$APP_CONFIG_SECRET_ARN" \
     --region "${var.aws_region}" \
     --query SecretString \
-    --output text)"
+    --output text 2>/dev/null || printf '{}')"
 fi
 
 secret_value() {

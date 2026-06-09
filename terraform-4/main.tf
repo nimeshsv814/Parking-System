@@ -37,12 +37,29 @@ module "load_balancers" {
   vpc_id                         = module.network.vpc_id
 }
 
+locals {
+  existing_app_config_secret_arn = trimspace(var.app_config_secret_arn)
+  app_config_secret_arn          = local.existing_app_config_secret_arn != "" ? local.existing_app_config_secret_arn : try(module.app_config_secret[0].secret_arn, "")
+}
+
+module "app_config_secret" {
+  count = var.create_app_config_secret && local.existing_app_config_secret_arn == "" ? 1 : 0
+
+  source = "./modules/secrets_manager"
+
+  create_initial_secret_version = var.create_app_config_initial_secret_version
+  description                   = "Runtime secrets for Smart Parking application services"
+  initial_secret_json           = var.app_config_initial_secret_json
+  name                          = var.app_config_secret_name
+  recovery_window_in_days       = var.app_config_secret_recovery_window_in_days
+}
+
 module "app_tier" {
   source = "./modules/app_tier"
 
   ami_id                      = var.ami_id
   app_desired_capacity        = var.app_desired_capacity
-  app_config_secret_arn       = var.app_config_secret_arn
+  app_config_secret_arn       = local.app_config_secret_arn
   app_instance_type           = var.app_instance_type
   app_max_size                = var.app_max_size
   app_min_size                = var.app_min_size
@@ -85,16 +102,17 @@ module "web_tier" {
 }
 
 locals {
-  edge_hosted_zone_id              = var.create_route53_hosted_zone ? aws_route53_zone.edge[0].zone_id : var.route53_hosted_zone_id
+  create_edge_hosted_zone          = var.enable_edge_stack && var.create_route53_hosted_zone
+  edge_hosted_zone_id              = local.create_edge_hosted_zone ? aws_route53_zone.edge[0].zone_id : var.route53_hosted_zone_id
   existing_acm_certificate_arn     = trimspace(var.existing_acm_certificate_arn)
   create_acm_certificate           = var.enable_edge_stack && var.enable_acm && local.existing_acm_certificate_arn == ""
   cloudfront_custom_domain_enabled = var.enable_acm || local.existing_acm_certificate_arn != ""
   cloudfront_certificate_arn       = local.existing_acm_certificate_arn != "" ? local.existing_acm_certificate_arn : (var.enable_acm ? module.acm[0].certificate_arn : "")
-  create_cloudfront_dns_record     = var.enable_edge_stack && local.cloudfront_custom_domain_enabled
+  create_cloudfront_dns_record     = var.enable_edge_stack && var.create_cloudfront_route53_alias_record && var.app_domain_name != "" && local.edge_hosted_zone_id != ""
 }
 
 resource "aws_route53_zone" "edge" {
-  count = var.create_route53_hosted_zone ? 1 : 0
+  count = local.create_edge_hosted_zone ? 1 : 0
 
   name = var.route53_zone_domain_name != "" ? var.route53_zone_domain_name : var.app_domain_name
 

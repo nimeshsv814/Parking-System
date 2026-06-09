@@ -44,15 +44,16 @@ sqs_notification_queue_arn  = "arn:aws:sqs:us-east-1:<account-id>:smart-parking-
 
 `terraform-3` does not create the queue. It only passes the queue details to the app tier and grants the EC2 app role permission to use it.
 
-## Manual AWS Secrets Manager App Config
+## AWS Secrets Manager App Config
 
-Create one secret manually in AWS Secrets Manager, then paste its ARN into `terraform.tfvars`:
+By default, Terraform creates a Secrets Manager secret named `smart-parking-app-config-tf4` and passes its ARN to the app tier:
 
 ```hcl
-app_config_secret_arn = "arn:aws:secretsmanager:us-east-1:<account-id>:secret:smart-parking/app-config-xxxxxx"
+create_app_config_secret = true
+app_config_secret_name   = "smart-parking-app-config-tf4"
 ```
 
-Use this JSON structure for the secret value:
+After Terraform creates the secret, add this JSON secret value in the AWS console:
 
 ```json
 {
@@ -68,29 +69,43 @@ Use this JSON structure for the secret value:
 }
 ```
 
-Terraform does not store these secret values in state. It grants the app EC2 role `secretsmanager:GetSecretValue`, and the app launch template fetches the JSON at boot to build the service env files.
+Terraform does not store these secret values in state with the default settings. It grants the app EC2 role `secretsmanager:GetSecretValue`, and the app launch template fetches the JSON at boot to build the service env files.
 
-## Edge Stack: Route53, CloudFront, WAF, Optional ACM
+If you already have a secret, keep Terraform from creating one and paste the ARN:
+
+```hcl
+create_app_config_secret = false
+app_config_secret_arn    = "arn:aws:secretsmanager:us-east-1:<account-id>:secret:smart-parking-app-config-tf4-xxxxxx"
+```
+
+Optional: Terraform can create the initial secret value version, but the secret value will be stored in Terraform state:
+
+```hcl
+create_app_config_initial_secret_version = true
+app_config_initial_secret_json           = "{\"JWT_SECRET\":\"change-this-long-random-value\"}"
+```
+
+## Edge Stack: Route53, CloudFront, WAF, Manual ACM
 
 This folder can create:
 
-- Optional ACM certificate in `us-east-1`
-- Optional DNS validation records in Route53
+- Route53 public hosted zone
 - AWS WAF Web ACL for CloudFront
 - CloudFront distribution using the external ALB as origin
-- Route53 alias record for the app domain
+- Optional Route53 alias record for the app domain
 
-Current no-ACM mode:
+Manual ACM/custom-domain mode:
 
 ```hcl
-enable_edge_stack          = true
-enable_acm                 = false
-create_route53_hosted_zone = true
-route53_zone_domain_name   = "quickslot.site"
-app_domain_name            = "quickslot.site"
+enable_edge_stack                       = true
+enable_acm                              = false
+create_route53_hosted_zone              = true
+route53_zone_domain_name                = "quickslot.site"
+app_domain_name                         = "quickslot.site"
+create_cloudfront_route53_alias_record  = false
 ```
 
-In no-ACM mode, Terraform creates the Route53 hosted zone, CloudFront distribution, and WAF. Terraform does not create ACM and does not create the `quickslot.site` Route53 A/AAAA records. CloudFront is created with its default `*.cloudfront.net` domain.
+In this mode, Terraform creates the Route53 hosted zone, CloudFront distribution, and WAF. Terraform does not create ACM and does not create the `quickslot.site` Route53 A/AAAA records. CloudFront is created with its default `*.cloudfront.net` domain.
 
 Manual custom-domain mode:
 
@@ -100,16 +115,11 @@ Manual custom-domain mode:
 
 Terraform ignores CloudFront `aliases` and `viewer_certificate`, so later applies will not remove the manually attached ACM certificate or alternate domain name.
 
-To make `quickslot.site` go through CloudFront, CloudFront needs a matching ACM certificate from `us-east-1`. You can either let Terraform create it by setting `enable_acm = true`, or create it manually in ACM and paste the issued ARN:
+If you later want Terraform to create the Route53 A/AAAA alias records after the CloudFront alternate domain is attached, set:
 
 ```hcl
-enable_edge_stack            = true
-enable_acm                   = false
-existing_acm_certificate_arn = "arn:aws:acm:us-east-1:<account-id>:certificate/<certificate-id>"
-app_domain_name              = "quickslot.site"
+create_cloudfront_route53_alias_record = true
 ```
-
-When `existing_acm_certificate_arn` is set, Terraform does not create ACM. It attaches that certificate to CloudFront and points the Route53 A/AAAA records for `quickslot.site` to CloudFront. There is no ALB DNS fallback in Route53 for the custom domain.
 
 Before enabling it, update `terraform.tfvars`:
 
@@ -150,10 +160,10 @@ This avoids ACM certificate validation waiting on a hosted zone that is not yet 
 Optional:
 
 ```hcl
-cloudfront_price_class               = "PriceClass_100"
-cloudfront_create_ipv6_record        = true
-waf_rate_limit                       = 2000
-cloudfront_origin_custom_header_name = ""
+cloudfront_price_class                = "PriceClass_100"
+cloudfront_create_ipv6_record         = true
+waf_rate_limit                        = 2000
+cloudfront_origin_custom_header_name  = ""
 cloudfront_origin_custom_header_value = ""
 ```
 
@@ -163,4 +173,4 @@ Before applying, run:
 terraform plan
 ```
 
-Do not apply if Terraform wants to recreate the VPC, ALBs, subnets, security groups, launch templates, or autoscaling groups. For the edge change, the expected resources should be ACM, Route53 validation records, WAF, CloudFront, and Route53 alias records.
+Do not apply if Terraform wants to recreate the VPC, ALBs, subnets, security groups, or autoscaling groups unexpectedly. For this edge change, the expected resources should be Route53 hosted zone, WAF, CloudFront, and Secrets Manager. The app launch template may change because the app tier now receives the created secret ARN.
