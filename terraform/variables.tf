@@ -84,17 +84,17 @@ variable "web_instance_type" {
 
 variable "web_min_size" {
   type    = number
-  default = 2
+  default = 1
 }
 
 variable "web_max_size" {
   type    = number
-  default = 4
+  default = 1
 }
 
 variable "web_desired_capacity" {
   type    = number
-  default = 2
+  default = 1
 }
 
 variable "app_instance_type" {
@@ -104,17 +104,17 @@ variable "app_instance_type" {
 
 variable "app_min_size" {
   type    = number
-  default = 2
+  default = 1
 }
 
 variable "app_max_size" {
   type    = number
-  default = 4
+  default = 1
 }
 
 variable "app_desired_capacity" {
   type    = number
-  default = 2
+  default = 1
 }
 
 variable "frontend_image" {

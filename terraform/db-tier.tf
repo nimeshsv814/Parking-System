@@ -12,6 +12,11 @@ resource "aws_instance" "database" {
   associate_public_ip_address = false
   user_data_replace_on_change = true
 
+  depends_on = [
+    aws_nat_gateway.nat,
+    aws_route_table_association.db-pri
+  ]
+
   user_data = <<-EOF
 #!/bin/bash
 set -euxo pipefail
@@ -20,7 +25,12 @@ MONGODB_IMAGE="${var.mongodb_image}"
 
 export DEBIAN_FRONTEND=noninteractive
 
-apt-get update -y
+for attempt in {1..12}; do
+  if apt-get update -y; then
+    break
+  fi
+  sleep 10
+done
 apt-get install -y docker.io
 
 systemctl enable docker

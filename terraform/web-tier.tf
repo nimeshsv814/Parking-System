@@ -127,9 +127,13 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    location /health {
-        return 200 'OK';
-        add_header Content-Type text/plain;
+    location = /health {
+        proxy_pass http://127.0.0.1:8080/health;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 
     location / {
@@ -146,12 +150,32 @@ NGINXCONF
 nginx -t
 systemctl reload nginx
 
+cat <<'FRONTENDNGINX' > /opt/smart-parking-frontend-nginx.conf
+server {
+    listen 80 default_server;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    location = /health {
+        return 200 'OK';
+        add_header Content-Type text/plain;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+FRONTENDNGINX
+
 docker pull "$FRONTEND_IMAGE"
 docker rm -f smart-parking-frontend || true
 docker run -d \
   --name smart-parking-frontend \
   --restart unless-stopped \
   -p 127.0.0.1:8080:80 \
+  -v /opt/smart-parking-frontend-nginx.conf:/etc/nginx/conf.d/default.conf:ro \
   "$FRONTEND_IMAGE"
 
 EOF
