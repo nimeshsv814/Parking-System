@@ -119,7 +119,7 @@ variable "app_desired_capacity" {
 
 variable "frontend_image" {
   type    = string
-  default = "docker.io/nimeshsv814/tf-frontend:v1.1.1"
+  default = "docker.io/nimeshsv814/tf-frontend:v3.0.0"
 }
 
 variable "auth_service_image" {
