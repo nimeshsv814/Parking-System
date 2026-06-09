@@ -42,6 +42,7 @@ module "app_tier" {
 
   ami_id                      = var.ami_id
   app_desired_capacity        = var.app_desired_capacity
+  app_config_secret_arn       = var.app_config_secret_arn
   app_instance_type           = var.app_instance_type
   app_max_size                = var.app_max_size
   app_min_size                = var.app_min_size
@@ -84,7 +85,12 @@ module "web_tier" {
 }
 
 locals {
-  edge_hosted_zone_id = var.create_route53_hosted_zone ? aws_route53_zone.edge[0].zone_id : var.route53_hosted_zone_id
+  edge_hosted_zone_id              = var.create_route53_hosted_zone ? aws_route53_zone.edge[0].zone_id : var.route53_hosted_zone_id
+  existing_acm_certificate_arn     = trimspace(var.existing_acm_certificate_arn)
+  create_acm_certificate           = var.enable_edge_stack && var.enable_acm && local.existing_acm_certificate_arn == ""
+  cloudfront_custom_domain_enabled = var.enable_acm || local.existing_acm_certificate_arn != ""
+  cloudfront_certificate_arn       = local.existing_acm_certificate_arn != "" ? local.existing_acm_certificate_arn : (var.enable_acm ? module.acm[0].certificate_arn : "")
+  create_cloudfront_dns_record     = var.enable_edge_stack && local.cloudfront_custom_domain_enabled
 }
 
 resource "aws_route53_zone" "edge" {
@@ -98,7 +104,7 @@ resource "aws_route53_zone" "edge" {
 }
 
 module "acm" {
-  count = var.enable_edge_stack && var.enable_acm ? 1 : 0
+  count = local.create_acm_certificate ? 1 : 0
 
   source = "./modules/acm"
 
@@ -133,9 +139,9 @@ module "cdn" {
     aws = aws.us_east_1
   }
 
-  certificate_arn            = var.enable_acm ? module.acm[0].certificate_arn : ""
+  certificate_arn            = local.cloudfront_certificate_arn
   domain_name                = var.app_domain_name
-  enable_custom_domain       = var.enable_acm
+  enable_custom_domain       = local.cloudfront_custom_domain_enabled
   origin_custom_header_name  = var.cloudfront_origin_custom_header_name
   origin_custom_header_value = var.cloudfront_origin_custom_header_value
   origin_domain_name         = module.load_balancers.external_alb_dns
@@ -144,13 +150,13 @@ module "cdn" {
 }
 
 module "route53" {
-  count = var.enable_edge_stack ? 1 : 0
+  count = local.create_cloudfront_dns_record ? 1 : 0
 
   source = "./modules/route53"
 
-  cloudfront_domain_name    = var.enable_acm ? module.cdn[0].domain_name : module.load_balancers.external_alb_dns
-  cloudfront_hosted_zone_id = var.enable_acm ? module.cdn[0].hosted_zone_id : module.load_balancers.external_alb_zone_id
-  create_ipv6_record        = var.enable_acm ? var.cloudfront_create_ipv6_record : false
+  cloudfront_domain_name    = module.cdn[0].domain_name
+  cloudfront_hosted_zone_id = module.cdn[0].hosted_zone_id
+  create_ipv6_record        = var.cloudfront_create_ipv6_record
   domain_name               = var.app_domain_name
   hosted_zone_id            = local.edge_hosted_zone_id
 }

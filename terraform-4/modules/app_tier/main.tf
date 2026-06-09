@@ -21,7 +21,7 @@ resource "aws_iam_role_policy" "app_dynamodb_policy" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
+    Statement = concat([
       {
         Effect = "Allow"
         Action = [
@@ -63,7 +63,19 @@ resource "aws_iam_role_policy" "app_dynamodb_policy" {
           var.sqs_notification_queue_arn
         ]
       }
-    ]
+      ],
+      var.app_config_secret_arn != "" ? [
+        {
+          Effect = "Allow"
+          Action = [
+            "secretsmanager:GetSecretValue"
+          ]
+          Resource = [
+            var.app_config_secret_arn
+          ]
+        }
+      ] : []
+    )
   })
 }
 
@@ -97,13 +109,14 @@ BOOKING_SERVICE_IMAGE="${var.booking_service_image}"
 PAYMENT_SERVICE_IMAGE="${var.payment_service_image}"
 SCHEDULER_SERVICE_IMAGE="${var.scheduler_service_image}"
 NOTIFICATION_SERVICE_IMAGE="${var.notification_service_image}"
+APP_CONFIG_SECRET_ARN="${var.app_config_secret_arn}"
 ENV_DIR="/opt/smart-parking-env"
 APP_NETWORK="smart-parking-app"
 
 export DEBIAN_FRONTEND=noninteractive
 
 apt-get update -y
-apt-get install -y docker.io nginx
+apt-get install -y awscli docker.io jq nginx
 
 systemctl enable docker
 systemctl start docker
@@ -113,26 +126,56 @@ systemctl start nginx
 mkdir -p "$ENV_DIR"
 docker network create "$APP_NETWORK" || true
 
+APP_SECRET_JSON="{}"
+if [ -n "$APP_CONFIG_SECRET_ARN" ]; then
+  APP_SECRET_JSON="$(aws secretsmanager get-secret-value \
+    --secret-id "$APP_CONFIG_SECRET_ARN" \
+    --region "${var.aws_region}" \
+    --query SecretString \
+    --output text)"
+fi
+
+secret_value() {
+  key="$1"
+  fallback="$2"
+  value="$(printf '%s' "$APP_SECRET_JSON" | jq -r --arg key "$key" 'if has($key) and .[$key] != null and .[$key] != "" then .[$key] else empty end')"
+  if [ -n "$value" ]; then
+    printf '%s\n' "$value"
+  else
+    printf '%s\n' "$fallback"
+  fi
+}
+
+JWT_SECRET_VALUE="$(secret_value JWT_SECRET smartparking_super_secret)"
+INTERNAL_API_KEY_VALUE="$(secret_value INTERNAL_API_KEY smartparking_internal_key)"
+SEED_ADMIN_EMAIL_VALUE="$(secret_value SEED_ADMIN_EMAIL admin@parking.com)"
+SEED_ADMIN_PASSWORD_VALUE="$(secret_value SEED_ADMIN_PASSWORD Admin@123)"
+SEED_USER_EMAIL_VALUE="$(secret_value SEED_USER_EMAIL user@parking.com)"
+SEED_USER_PASSWORD_VALUE="$(secret_value SEED_USER_PASSWORD User@123)"
+RAZORPAY_KEY_ID_VALUE="$(secret_value RAZORPAY_KEY_ID rzp_test_ShFFMxa9JkqmZu)"
+RAZORPAY_KEY_SECRET_VALUE="$(secret_value RAZORPAY_KEY_SECRET 1I4sLVIvCMWSTUlM5lCZm71j)"
+RAZORPAY_CURRENCY_VALUE="$(secret_value RAZORPAY_CURRENCY INR)"
+
 cat <<EOT > "$ENV_DIR/auth-service.env"
 PORT=4001
 AWS_REGION=${var.aws_region}
 AUTH_USERS_TABLE=${var.auth_users_table}
-JWT_SECRET=smartparking_super_secret
+JWT_SECRET=$JWT_SECRET_VALUE
 JWT_EXPIRES_IN=7d
 CORS_ORIGIN=*
-SEED_ADMIN_EMAIL=admin@parking.com
-SEED_ADMIN_PASSWORD=Admin@123
-SEED_USER_EMAIL=user@parking.com
-SEED_USER_PASSWORD=User@123
+SEED_ADMIN_EMAIL=$SEED_ADMIN_EMAIL_VALUE
+SEED_ADMIN_PASSWORD=$SEED_ADMIN_PASSWORD_VALUE
+SEED_USER_EMAIL=$SEED_USER_EMAIL_VALUE
+SEED_USER_PASSWORD=$SEED_USER_PASSWORD_VALUE
 EOT
 
 cat <<EOT > "$ENV_DIR/parking-service.env"
 PORT=4002
 AWS_REGION=${var.aws_region}
 PARKING_SLOTS_TABLE=${var.parking_slots_table}
-JWT_SECRET=smartparking_super_secret
+JWT_SECRET=$JWT_SECRET_VALUE
 CORS_ORIGIN=*
-INTERNAL_API_KEY=smartparking_internal_key
+INTERNAL_API_KEY=$INTERNAL_API_KEY_VALUE
 EOT
 
 cat <<EOT > "$ENV_DIR/booking-service.env"
@@ -141,11 +184,11 @@ AWS_REGION=${var.aws_region}
 BOOKING_TABLE=${var.booking_table}
 SQS_NOTIFICATION_QUEUE_NAME=${var.sqs_notification_queue_name}
 SQS_NOTIFICATION_QUEUE_URL=${var.sqs_notification_queue_url}
-JWT_SECRET=smartparking_super_secret
+JWT_SECRET=$JWT_SECRET_VALUE
 CORS_ORIGIN=*
 PARKING_SERVICE_URL=http://parking-service:4002
 NOTIFICATION_SERVICE_URL=http://notification-service:4006
-INTERNAL_API_KEY=smartparking_internal_key
+INTERNAL_API_KEY=$INTERNAL_API_KEY_VALUE
 BOOKING_HOLD_MINUTES=10
 EOT
 
@@ -155,14 +198,14 @@ AWS_REGION=${var.aws_region}
 PAYMENT_TABLE=${var.payment_table}
 SQS_NOTIFICATION_QUEUE_NAME=${var.sqs_notification_queue_name}
 SQS_NOTIFICATION_QUEUE_URL=${var.sqs_notification_queue_url}
-JWT_SECRET=smartparking_super_secret
+JWT_SECRET=$JWT_SECRET_VALUE
 CORS_ORIGIN=*
 BOOKING_SERVICE_URL=http://booking-service:4003
 NOTIFICATION_SERVICE_URL=http://notification-service:4006
-INTERNAL_API_KEY=smartparking_internal_key
-RAZORPAY_KEY_ID=rzp_test_ShFFMxa9JkqmZu
-RAZORPAY_KEY_SECRET=1I4sLVIvCMWSTUlM5lCZm71j
-RAZORPAY_CURRENCY=INR
+INTERNAL_API_KEY=$INTERNAL_API_KEY_VALUE
+RAZORPAY_KEY_ID=$RAZORPAY_KEY_ID_VALUE
+RAZORPAY_KEY_SECRET=$RAZORPAY_KEY_SECRET_VALUE
+RAZORPAY_CURRENCY=$RAZORPAY_CURRENCY_VALUE
 EOT
 
 cat <<EOT > "$ENV_DIR/scheduler-service.env"
@@ -170,7 +213,7 @@ PORT=4005
 AWS_REGION=${var.aws_region}
 BOOKING_TABLE=${var.booking_table}
 BOOKING_SERVICE_URL=http://booking-service:4003
-INTERNAL_API_KEY=smartparking_internal_key
+INTERNAL_API_KEY=$INTERNAL_API_KEY_VALUE
 CRON_SCHEDULE=* * * * *
 EOT
 
@@ -180,9 +223,9 @@ AWS_REGION=${var.aws_region}
 NOTIFICATION_TABLE=${var.notification_table}
 SQS_NOTIFICATION_QUEUE_NAME=${var.sqs_notification_queue_name}
 SQS_NOTIFICATION_QUEUE_URL=${var.sqs_notification_queue_url}
-JWT_SECRET=smartparking_super_secret
+JWT_SECRET=$JWT_SECRET_VALUE
 CORS_ORIGIN=*
-INTERNAL_API_KEY=smartparking_internal_key
+INTERNAL_API_KEY=$INTERNAL_API_KEY_VALUE
 EOT
 
 run_service_container() {

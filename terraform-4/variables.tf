@@ -200,6 +200,12 @@ variable "sqs_notification_queue_arn" {
   default     = "arn:aws:sqs:us-east-1:*:smart-parking-notifications-queue"
 }
 
+variable "app_config_secret_arn" {
+  type        = string
+  description = "Optional AWS Secrets Manager secret ARN containing app runtime secrets as JSON"
+  default     = ""
+}
+
 variable "enable_edge_stack" {
   type        = bool
   description = "Set true to create Route53, WAF, and CloudFront edge resources"
@@ -208,8 +214,19 @@ variable "enable_edge_stack" {
 
 variable "enable_acm" {
   type        = bool
-  description = "Set true to create/use ACM and attach app_domain_name to CloudFront"
+  description = "Set true to let Terraform create ACM and attach app_domain_name to CloudFront"
   default     = false
+}
+
+variable "existing_acm_certificate_arn" {
+  type        = string
+  description = "Existing ACM certificate ARN in us-east-1 for app_domain_name. Leave blank to skip manual ACM."
+  default     = ""
+
+  validation {
+    condition     = var.existing_acm_certificate_arn == "" || can(regex("^arn:aws:acm:us-east-1:[0-9]{12}:certificate/.+", var.existing_acm_certificate_arn))
+    error_message = "existing_acm_certificate_arn must be blank or an ACM certificate ARN from us-east-1."
+  }
 }
 
 variable "route53_hosted_zone_id" {

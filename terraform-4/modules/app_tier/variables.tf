@@ -26,6 +26,10 @@ variable "app_desired_capacity" {
   type = number
 }
 
+variable "app_config_secret_arn" {
+  type = string
+}
+
 variable "app_private_subnet_ids" {
   type = list(string)
 }

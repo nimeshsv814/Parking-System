@@ -18,9 +18,24 @@ output "cloudfront_domain_name" {
   value       = try(module.cdn[0].domain_name, null)
 }
 
+output "cloudfront_hosted_zone_id" {
+  description = "CloudFront hosted zone ID to use for manual Route53 alias records"
+  value       = try(module.cdn[0].hosted_zone_id, null)
+}
+
+output "cloudfront_custom_domain_enabled" {
+  description = "True only when Terraform is managing the CloudFront custom domain"
+  value       = local.cloudfront_custom_domain_enabled
+}
+
 output "app_domain_name" {
   description = "Route53 application domain when edge stack is enabled"
   value       = var.enable_edge_stack ? var.app_domain_name : null
+}
+
+output "app_domain_route53_target" {
+  description = "Terraform-managed DNS target for app_domain_name. Null when Route53 alias is handled manually."
+  value       = local.create_cloudfront_dns_record ? module.cdn[0].domain_name : null
 }
 
 output "route53_hosted_zone_id" {

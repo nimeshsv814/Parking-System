@@ -95,4 +95,11 @@ resource "aws_cloudfront_distribution" "this" {
       cloudfront_default_certificate = true
     }
   }
+
+  lifecycle {
+    ignore_changes = [
+      aliases,
+      viewer_certificate
+    ]
+  }
 }
