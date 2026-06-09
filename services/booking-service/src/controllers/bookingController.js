@@ -9,19 +9,7 @@ const getAffordableAmount = (amount) => {
   return Number.isFinite(numericAmount) && numericAmount > 0 ? numericAmount : DEFAULT_BOOKING_AMOUNT;
 };
 
-const normalizeBookingAmount = (booking) => {
-  const bookingObject = booking.toObject ? booking.toObject() : booking;
-  return { ...bookingObject, amount: getAffordableAmount(bookingObject.amount) };
-};
-
-const repairZeroAmounts = async () => {
-  await Booking.updateMany(
-    {
-      $or: [{ amount: { $exists: false } }, { amount: { $lte: 0 } }],
-    },
-    { $set: { amount: DEFAULT_BOOKING_AMOUNT } }
-  );
-};
+const normalizeBookingAmount = (booking) => ({ ...booking, amount: getAffordableAmount(booking.amount) });
 
 const sendNotification = async ({ recipientUserId, bookingId, type, message, metadata = {} }) => {
   try {
@@ -57,6 +45,8 @@ const occupySlot = async (slotId, bookingId) => {
 };
 
 const createBooking = async (req, res) => {
+  const bookingId = buildBookingId();
+
   try {
     const { slotId } = req.body;
     if (!slotId) {
@@ -73,22 +63,21 @@ const createBooking = async (req, res) => {
     }
 
     const bookingAmount = getAffordableAmount(slot.price);
-
-    const booking = await Booking.create({
-      bookingId: buildBookingId(),
+    const booking = await Booking.createBooking({
+      bookingId,
       userId: req.user.id,
       userEmail: req.user.email,
       slotId,
       amount: bookingAmount,
       status: "pending",
-      timestamp: new Date(),
-      expiresAt: new Date(Date.now() + Number(process.env.BOOKING_HOLD_MINUTES || 10) * 60 * 1000),
+      timestamp: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + Number(process.env.BOOKING_HOLD_MINUTES || 10) * 60 * 1000).toISOString(),
     });
 
     try {
       await reserveSlot(slotId, booking.bookingId);
     } catch (error) {
-      await Booking.deleteOne({ _id: booking._id });
+      await Booking.deleteBooking(booking.bookingId);
       return res.status(error.response?.status || 500).json({
         message: error.response?.data?.message || "Failed to reserve slot",
       });
@@ -102,34 +91,44 @@ const createBooking = async (req, res) => {
       metadata: { slotId, amount: bookingAmount },
     });
 
-    return res.status(201).json({ message: "Booking created", booking });
+    return res.status(201).json({ message: "Booking created", booking: normalizeBookingAmount(booking) });
   } catch (error) {
     return res.status(500).json({ message: "Failed to create booking", error: error.message });
   }
 };
 
 const getBookings = async (req, res) => {
-  await repairZeroAmounts();
-  const query = req.user.role === "admin" ? {} : { userId: req.user.id };
-  const bookings = await Booking.find(query).sort({ createdAt: -1 });
-  return res.json(bookings.map(normalizeBookingAmount));
+  try {
+    await Booking.repairZeroAmounts(DEFAULT_BOOKING_AMOUNT);
+    const bookings = await Booking.listBookings({
+      isAdmin: req.user.role === "admin",
+      userId: req.user.id,
+    });
+    return res.json(bookings.map(normalizeBookingAmount));
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to load bookings", error: error.message });
+  }
 };
 
 const getBookingById = async (req, res) => {
-  await repairZeroAmounts();
-  const booking = await Booking.findOne({ bookingId: req.params.bookingId });
-  if (!booking) {
-    return res.status(404).json({ message: "Booking not found" });
+  try {
+    await Booking.repairZeroAmounts(DEFAULT_BOOKING_AMOUNT);
+    const booking = await Booking.getBooking(req.params.bookingId);
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+    if (req.user.role !== "admin" && booking.userId !== req.user.id) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+    return res.json(normalizeBookingAmount(booking));
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to load booking", error: error.message });
   }
-  if (req.user.role !== "admin" && booking.userId !== req.user.id) {
-    return res.status(403).json({ message: "Access denied" });
-  }
-  return res.json(normalizeBookingAmount(booking));
 };
 
 const cancelBooking = async (req, res) => {
   try {
-    const booking = await Booking.findOne({ bookingId: req.params.bookingId });
+    const booking = await Booking.getBooking(req.params.bookingId);
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
     }
@@ -142,9 +141,10 @@ const cancelBooking = async (req, res) => {
       return res.status(400).json({ message: `Cannot cancel a ${booking.status} booking` });
     }
 
-    booking.status = "cancelled";
-    booking.cancelledAt = new Date();
-    await booking.save();
+    const updatedBooking = await Booking.updateBooking(booking.bookingId, {
+      status: "cancelled",
+      cancelledAt: new Date().toISOString(),
+    });
     await releaseSlot(booking.slotId);
     await sendNotification({
       recipientUserId: booking.userId,
@@ -154,24 +154,28 @@ const cancelBooking = async (req, res) => {
       metadata: { slotId: booking.slotId },
     });
 
-    return res.json({ message: "Booking cancelled", booking });
+    return res.json({ message: "Booking cancelled", booking: normalizeBookingAmount(updatedBooking) });
   } catch (error) {
     return res.status(500).json({ message: "Failed to cancel booking", error: error.message });
   }
 };
 
 const getBookingInternal = async (req, res) => {
-  await repairZeroAmounts();
-  const booking = await Booking.findOne({ bookingId: req.params.bookingId });
-  if (!booking) {
-    return res.status(404).json({ message: "Booking not found" });
+  try {
+    await Booking.repairZeroAmounts(DEFAULT_BOOKING_AMOUNT);
+    const booking = await Booking.getBooking(req.params.bookingId);
+    if (!booking) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+    return res.json(normalizeBookingAmount(booking));
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to load booking", error: error.message });
   }
-  return res.json(normalizeBookingAmount(booking));
 };
 
 const confirmBookingInternal = async (req, res) => {
   try {
-    const booking = await Booking.findOne({ bookingId: req.params.bookingId });
+    const booking = await Booking.getBooking(req.params.bookingId);
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
     }
@@ -180,9 +184,10 @@ const confirmBookingInternal = async (req, res) => {
       return res.status(400).json({ message: `Cannot confirm a ${booking.status} booking` });
     }
 
-    booking.status = "confirmed";
-    booking.paidAt = new Date();
-    await booking.save();
+    const updatedBooking = await Booking.updateBooking(booking.bookingId, {
+      status: "confirmed",
+      paidAt: new Date().toISOString(),
+    });
     await occupySlot(booking.slotId, booking.bookingId);
     await sendNotification({
       recipientUserId: booking.userId,
@@ -192,7 +197,7 @@ const confirmBookingInternal = async (req, res) => {
       metadata: { slotId: booking.slotId, amount: getAffordableAmount(booking.amount) },
     });
 
-    return res.json({ message: "Booking confirmed", booking });
+    return res.json({ message: "Booking confirmed", booking: normalizeBookingAmount(updatedBooking) });
   } catch (error) {
     return res.status(500).json({ message: "Failed to confirm booking", error: error.message });
   }
@@ -200,7 +205,7 @@ const confirmBookingInternal = async (req, res) => {
 
 const cancelBookingInternal = async (req, res) => {
   try {
-    const booking = await Booking.findOne({ bookingId: req.params.bookingId });
+    const booking = await Booking.getBooking(req.params.bookingId);
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
     }
@@ -208,9 +213,10 @@ const cancelBookingInternal = async (req, res) => {
       return res.status(400).json({ message: `Cannot cancel a ${booking.status} booking` });
     }
 
-    booking.status = "cancelled";
-    booking.cancelledAt = new Date();
-    await booking.save();
+    const updatedBooking = await Booking.updateBooking(booking.bookingId, {
+      status: "cancelled",
+      cancelledAt: new Date().toISOString(),
+    });
     await releaseSlot(booking.slotId);
     await sendNotification({
       recipientUserId: booking.userId,
@@ -220,7 +226,7 @@ const cancelBookingInternal = async (req, res) => {
       metadata: { slotId: booking.slotId },
     });
 
-    return res.json({ message: "Booking cancelled", booking });
+    return res.json({ message: "Booking cancelled", booking: normalizeBookingAmount(updatedBooking) });
   } catch (error) {
     return res.status(500).json({ message: "Failed to cancel booking", error: error.message });
   }
@@ -228,7 +234,7 @@ const cancelBookingInternal = async (req, res) => {
 
 const expireBookingInternal = async (req, res) => {
   try {
-    const booking = await Booking.findOne({ bookingId: req.params.bookingId });
+    const booking = await Booking.getBooking(req.params.bookingId);
     if (!booking) {
       return res.status(404).json({ message: "Booking not found" });
     }
@@ -236,9 +242,10 @@ const expireBookingInternal = async (req, res) => {
       return res.status(400).json({ message: `Cannot expire a ${booking.status} booking` });
     }
 
-    booking.status = "expired";
-    booking.expiredAt = new Date();
-    await booking.save();
+    const updatedBooking = await Booking.updateBooking(booking.bookingId, {
+      status: "expired",
+      expiredAt: new Date().toISOString(),
+    });
     await releaseSlot(booking.slotId);
     await sendNotification({
       recipientUserId: booking.userId,
@@ -248,7 +255,7 @@ const expireBookingInternal = async (req, res) => {
       metadata: { slotId: booking.slotId },
     });
 
-    return res.json({ message: "Booking expired", booking });
+    return res.json({ message: "Booking expired", booking: normalizeBookingAmount(updatedBooking) });
   } catch (error) {
     return res.status(500).json({ message: "Failed to expire booking", error: error.message });
   }
@@ -256,15 +263,13 @@ const expireBookingInternal = async (req, res) => {
 
 const expirePendingBookings = async (_req, res) => {
   try {
-    const expiredBookings = await Booking.find({
-      status: "pending",
-      expiresAt: { $lte: new Date() },
-    });
+    const expiredBookings = await Booking.findExpiredPendingBookings(new Date().toISOString());
 
     for (const booking of expiredBookings) {
-      booking.status = "expired";
-      booking.expiredAt = new Date();
-      await booking.save();
+      await Booking.updateBooking(booking.bookingId, {
+        status: "expired",
+        expiredAt: new Date().toISOString(),
+      });
       await releaseSlot(booking.slotId);
       await sendNotification({
         recipientUserId: booking.userId,
@@ -296,4 +301,3 @@ module.exports = {
   getBookingInternal,
   getBookings,
 };
-

@@ -2,7 +2,6 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
-const { connectDB } = require("./config/db");
 const slotRoutes = require("./routes/slotRoutes");
 const { ensureSeedSlots } = require("./scripts/seed");
 
@@ -15,11 +14,12 @@ app.use("/", slotRoutes);
 
 const start = async () => {
   try {
-    await connectDB(process.env.MONGO_URI);
-    await ensureSeedSlots();
     const port = process.env.PORT || 4002;
     app.listen(port, () => {
       console.log(`Parking service listening on port ${port}`);
+    });
+    ensureSeedSlots().catch((error) => {
+      console.error("Parking seed failed", error);
     });
   } catch (error) {
     console.error("Parking service failed to start", error);

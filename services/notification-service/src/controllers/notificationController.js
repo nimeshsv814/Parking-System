@@ -1,4 +1,4 @@
-const Notification = require("../models/Notification");
+const { createNotification: putNotification, listNotifications } = require("../models/Notification");
 
 const createNotification = async (req, res) => {
   try {
@@ -7,7 +7,7 @@ const createNotification = async (req, res) => {
       return res.status(400).json({ message: "recipientUserId, type, and message are required" });
     }
 
-    const notification = await Notification.create({
+    const notification = await putNotification({
       recipientUserId,
       bookingId,
       type,
@@ -24,9 +24,15 @@ const createNotification = async (req, res) => {
 };
 
 const getNotifications = async (req, res) => {
-  const query = req.user.role === "admin" ? {} : { recipientUserId: req.user.id };
-  const notifications = await Notification.find(query).sort({ createdAt: -1 }).limit(100);
-  return res.json(notifications);
+  try {
+    const notifications = await listNotifications({
+      isAdmin: req.user.role === "admin",
+      recipientUserId: req.user.id,
+    });
+    return res.json(notifications);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to load notifications", error: error.message });
+  }
 };
 
 module.exports = { createNotification, getNotifications };

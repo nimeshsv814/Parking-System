@@ -56,7 +56,7 @@ const processPayment = async (req, res) => {
 
     const payableAmount = getAffordableAmount(booking.amount);
 
-    const payment = await Payment.create({
+    const payment = await Payment.createPayment({
       paymentId: buildPaymentId(),
       bookingId,
       userId: booking.userId,
@@ -150,13 +150,10 @@ const createRazorpayOrder = async (req, res) => {
       return res.status(400).json({ message: "Booking amount is invalid" });
     }
 
-    const existingPayment = await Payment.findOne({
+    const existingPayment = await Payment.findReusableOrderPayment({
       bookingId,
       userId: booking.userId,
-      amount: { $gt: 0 },
-      status: "created",
-      razorpayOrderId: { $exists: true, $ne: null },
-    }).sort({ createdAt: -1 });
+    });
 
     if (existingPayment) {
       return res.status(200).json({
@@ -182,7 +179,7 @@ const createRazorpayOrder = async (req, res) => {
       },
     });
 
-    await Payment.create({
+    await Payment.createPayment({
       paymentId: order.receipt,
       bookingId,
       userId: booking.userId,
@@ -215,11 +212,11 @@ const verifyRazorpayPayment = async (req, res) => {
       return res.status(400).json({ message: "Razorpay payment details are required" });
     }
 
-    const payment = await Payment.findOne({
+    const payment = await Payment.findPaymentByRazorpayOrder({
       bookingId,
       userId: booking.userId,
       razorpayOrderId: razorpay_order_id,
-    }).sort({ createdAt: -1 });
+    });
 
     if (!payment) {
       return res.status(404).json({ message: "Payment order not found" });
@@ -233,18 +230,20 @@ const verifyRazorpayPayment = async (req, res) => {
       .digest("hex");
 
     if (expectedSignature !== razorpay_signature) {
-      payment.status = "failed";
-      payment.razorpayPaymentId = razorpay_payment_id;
-      payment.razorpaySignature = razorpay_signature;
-      await payment.save();
-      return res.status(400).json({ message: "Payment verification failed" });
+      const failedPayment = await Payment.updatePayment(payment.paymentId, {
+        status: "failed",
+        razorpayPaymentId: razorpay_payment_id,
+        razorpaySignature: razorpay_signature,
+      });
+      return res.status(400).json({ message: "Payment verification failed", payment: failedPayment });
     }
 
-    payment.status = "success";
-    payment.transactionRef = razorpay_payment_id;
-    payment.razorpayPaymentId = razorpay_payment_id;
-    payment.razorpaySignature = razorpay_signature;
-    await payment.save();
+    const updatedPayment = await Payment.updatePayment(payment.paymentId, {
+      status: "success",
+      transactionRef: razorpay_payment_id,
+      razorpayPaymentId: razorpay_payment_id,
+      razorpaySignature: razorpay_signature,
+    });
 
     const confirmResponse = await bookingClient.post(
       `/internal/bookings/${bookingId}/confirm`,
@@ -260,14 +259,14 @@ const verifyRazorpayPayment = async (req, res) => {
       metadata: {
         amount: payableAmount,
         method: "razorpay",
-        paymentId: payment.paymentId,
+        paymentId: updatedPayment.paymentId,
         razorpayPaymentId: razorpay_payment_id,
       },
     });
 
     return res.json({
       message: "Payment verified",
-      payment,
+      payment: updatedPayment,
       booking: confirmResponse.data.booking,
     });
   } catch (error) {
@@ -279,10 +278,15 @@ const verifyRazorpayPayment = async (req, res) => {
 };
 
 const getPayments = async (req, res) => {
-  const query = req.user.role === "admin" ? {} : { userId: req.user.id };
-  const payments = await Payment.find(query).sort({ createdAt: -1 });
-  return res.json(payments);
+  try {
+    const payments = await Payment.listPayments({
+      isAdmin: req.user.role === "admin",
+      userId: req.user.id,
+    });
+    return res.json(payments);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to load payments", error: error.message });
+  }
 };
 
 module.exports = { createRazorpayOrder, getPayments, processPayment, verifyRazorpayPayment };
-

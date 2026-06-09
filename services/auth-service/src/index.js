@@ -2,7 +2,6 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
-const { connectDB } = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const { ensureSeedUsers } = require("./scripts/seed");
 
@@ -15,11 +14,12 @@ app.use("/", authRoutes);
 
 const start = async () => {
   try {
-    await connectDB(process.env.MONGO_URI);
-    await ensureSeedUsers();
     const port = process.env.PORT || 4001;
     app.listen(port, () => {
       console.log(`Auth service listening on port ${port}`);
+    });
+    ensureSeedUsers().catch((error) => {
+      console.error("Auth seed failed", error);
     });
   } catch (error) {
     console.error("Auth service failed to start", error);

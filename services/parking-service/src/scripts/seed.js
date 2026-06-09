@@ -1,11 +1,6 @@
-const Slot = require("../models/Slot");
+const { insertSlotsIfEmpty } = require("../models/Slot");
 
 const ensureSeedSlots = async () => {
-  const count = await Slot.countDocuments();
-  if (count > 0) {
-    return;
-  }
-
   const slots = [
     { slotId: "A-101", location: "North Deck - L1", price: 80, status: "available" },
     { slotId: "A-102", location: "North Deck - L1", price: 80, status: "available" },
@@ -17,8 +12,10 @@ const ensureSeedSlots = async () => {
     { slotId: "D-401", location: "Basement - L1", price: 60, status: "available" }
   ];
 
-  await Slot.insertMany(slots);
-  console.log("Parking seed slots created");
+  const created = await insertSlotsIfEmpty(slots);
+  if (created) {
+    console.log("Parking seed slots created");
+  }
 };
 
 module.exports = { ensureSeedSlots };
