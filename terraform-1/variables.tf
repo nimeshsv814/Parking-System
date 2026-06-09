@@ -124,22 +124,22 @@ variable "frontend_image" {
 
 variable "auth_service_image" {
   type    = string
-  default = "docker.io/nimeshsv814/tf-auth-service:latest"
+  default = "docker.io/nimeshsv814/tf-auth-service:v3.0.0"
 }
 
 variable "parking_service_image" {
   type    = string
-  default = "docker.io/nimeshsv814/tf-parking-service:v2.0.0"
+  default = "docker.io/nimeshsv814/tf-parking-service:v3.0.0"
 }
 
 variable "booking_service_image" {
   type    = string
-  default = "docker.io/nimeshsv814/tf-booking-service:v2.0.1"
+  default = "docker.io/nimeshsv814/tf-booking-service:v3.0.0"
 }
 
 variable "payment_service_image" {
   type    = string
-  default = "docker.io/nimeshsv814/tf-payment-service:v2.0.0"
+  default = "docker.io/nimeshsv814/tf-payment-service:v3.0.0"
 }
 
 variable "scheduler_service_image" {
@@ -149,7 +149,7 @@ variable "scheduler_service_image" {
 
 variable "notification_service_image" {
   type    = string
-  default = "docker.io/nimeshsv814/tf-notification-service:latest"
+  default = "docker.io/nimeshsv814/tf-notification-service:v3.0.0"
 }
 
 variable "auth_users_table" {
