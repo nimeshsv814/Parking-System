@@ -87,3 +87,23 @@ output "booking_cancelled_sns_topic_name" {
   description = "SNS topic name for booking cancellation user notifications"
   value       = try(module.booking_sns_notifications[0].booking_cancelled_topic_name, null)
 }
+
+output "booking_sns_to_sqs_subscription_enabled" {
+  description = "True when booking SNS topics are subscribed to the notification SQS queue"
+  value       = try(module.booking_sns_notifications[0].sqs_subscription_enabled, false)
+}
+
+output "asg_notification_topic_arn" {
+  description = "SNS topic ARN for Auto Scaling Group EC2 launch and terminate notifications"
+  value       = try(aws_sns_topic.asg_notifications[0].arn, null)
+}
+
+output "asg_notification_email" {
+  description = "Email subscribed to Auto Scaling Group EC2 launch and terminate notifications"
+  value       = var.enable_asg_email_notifications ? var.asg_notification_email : null
+}
+
+output "asg_notification_group_names" {
+  description = "Auto Scaling Groups configured to send EC2 launch and terminate notifications"
+  value       = var.enable_asg_email_notifications ? local.asg_notification_group_names : []
+}

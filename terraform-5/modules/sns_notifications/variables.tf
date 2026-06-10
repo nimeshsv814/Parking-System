@@ -13,3 +13,15 @@ variable "booking_confirmed_email_subscribers" {
 variable "booking_cancelled_email_subscribers" {
   type = list(string)
 }
+
+variable "enable_sqs_subscription" {
+  type = bool
+}
+
+variable "notification_queue_arn" {
+  type = string
+}
+
+variable "notification_queue_url" {
+  type = string
+}

@@ -13,3 +13,7 @@ output "booking_confirmed_topic_name" {
 output "booking_cancelled_topic_name" {
   value = aws_sns_topic.booking_cancelled.name
 }
+
+output "sqs_subscription_enabled" {
+  value = local.create_sqs_subscription
+}

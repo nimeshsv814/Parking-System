@@ -92,12 +92,35 @@ Terraform creates two SNS topics for booking lifecycle notifications:
 - `smart-parking-booking-confirmed`
 - `smart-parking-booking-cancelled`
 
+The topic resources are defined in `modules/sns_notifications/main.tf`.
+
 The app EC2 role gets `sns:Publish` access to both topics, and the app tier passes these environment variables to the booking and notification containers:
 
 ```text
 BOOKING_CONFIRMED_SNS_TOPIC_ARN
 BOOKING_CANCELLED_SNS_TOPIC_ARN
 ```
+
+Recommended booking-user email flow:
+
+```text
+Booking Service -> SNS topic -> Notification SQS queue -> Notification Service -> User email
+```
+
+To enable the SNS to SQS bridge, set the real manually created SQS queue values:
+
+```hcl
+enable_booking_sns_to_sqs_subscription = true
+sqs_notification_queue_name            = "smart-parking-notifications-queue"
+sqs_notification_queue_url             = "https://sqs.us-east-1.amazonaws.com/<account-id>/smart-parking-notifications-queue"
+sqs_notification_queue_arn             = "arn:aws:sqs:us-east-1:<account-id>:smart-parking-notifications-queue"
+```
+
+Terraform will then:
+
+- subscribe the notification SQS queue to both booking SNS topics
+- add an SQS queue policy that allows those SNS topics to send messages
+- output whether the bridge is active as `booking_sns_to_sqs_subscription_enabled`
 
 Optional static email subscribers can be added with:
 
@@ -106,7 +129,20 @@ booking_confirmed_email_subscribers = ["user@example.com"]
 booking_cancelled_email_subscribers = ["user@example.com"]
 ```
 
-Each email address must confirm the AWS SNS subscription before it receives messages. For real per-user booking notifications, the application code must publish the confirmed/cancelled message to the matching topic or dynamically target the user's verified endpoint.
+Each direct SNS email address must confirm the AWS SNS subscription before it receives messages. Direct topic email subscribers receive every message on that topic, so they are better for testing/admin alerts. For real per-user booking emails, the application message should include the booking user's email address and the notification service should send to that address.
+
+## SNS Auto Scaling Notifications
+
+Terraform creates an SNS topic named `smart-parking-asg-ec2-notifications` and subscribes `nimeshsv814@gmail.com`.
+
+The app and web Auto Scaling Groups send these events to the topic:
+
+- EC2 instance launch
+- EC2 instance launch error
+- EC2 instance terminate
+- EC2 instance terminate error
+
+After `terraform apply`, open the AWS SNS confirmation email sent to `nimeshsv814@gmail.com` and confirm the subscription. Emails will not arrive until the subscription is confirmed.
 
 ## Edge Stack: Route53, CloudFront, WAF, Manual ACM
 

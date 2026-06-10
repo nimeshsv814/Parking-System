@@ -117,6 +117,24 @@ variable "app_desired_capacity" {
   default = 1
 }
 
+variable "enable_asg_email_notifications" {
+  type        = bool
+  description = "Create SNS email notifications for EC2 launch and terminate events from application Auto Scaling Groups"
+  default     = true
+}
+
+variable "asg_notification_email" {
+  type        = string
+  description = "Email address subscribed to Auto Scaling Group launch and terminate notifications"
+  default     = "nimeshsv814@gmail.com"
+}
+
+variable "asg_notification_topic_name" {
+  type        = string
+  description = "SNS topic name for Auto Scaling Group lifecycle notifications"
+  default     = "smart-parking-asg-ec2-notifications"
+}
+
 variable "frontend_image" {
   type    = string
   default = "docker.io/nimeshsv814/tf-frontend:v3.0.0"
@@ -228,6 +246,12 @@ variable "booking_cancelled_email_subscribers" {
   type        = list(string)
   description = "Static email subscribers for booking cancellation SNS notifications. Each email must confirm the SNS subscription."
   default     = []
+}
+
+variable "enable_booking_sns_to_sqs_subscription" {
+  type        = bool
+  description = "Subscribe the existing notification SQS queue to booking SNS topics so the notification service can email the booking user"
+  default     = true
 }
 
 variable "app_config_secret_arn" {

@@ -63,6 +63,9 @@ module "booking_sns_notifications" {
   booking_cancelled_topic_name        = var.booking_cancelled_sns_topic_name
   booking_confirmed_email_subscribers = var.booking_confirmed_email_subscribers
   booking_confirmed_topic_name        = var.booking_confirmed_sns_topic_name
+  enable_sqs_subscription             = var.enable_booking_sns_to_sqs_subscription
+  notification_queue_arn              = var.sqs_notification_queue_arn
+  notification_queue_url              = var.sqs_notification_queue_url
 }
 
 module "app_tier" {
