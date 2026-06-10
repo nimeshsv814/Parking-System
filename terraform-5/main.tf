@@ -39,7 +39,7 @@ module "load_balancers" {
 
 locals {
   existing_app_config_secret_arn = trimspace(var.app_config_secret_arn)
-  app_config_secret_arn          = local.existing_app_config_secret_arn != "" ? local.existing_app_config_secret_arn : try(module.app_config_secret[0].secret_arn, "")
+  app_config_secret_arn          = local.existing_app_config_secret_arn != "" ? local.existing_app_config_secret_arn : (var.create_app_config_secret ? try(module.app_config_secret[0].secret_arn, "") : data.aws_secretsmanager_secret.app_config_existing[0].arn)
 }
 
 module "app_config_secret" {
@@ -47,11 +47,24 @@ module "app_config_secret" {
 
   source = "./modules/secrets_manager"
 
-  create_initial_secret_version = var.create_app_config_initial_secret_version
+  create_initial_secret_version = var.create_app_config_initial_secret_version && !var.manage_app_config_secret_value
   description                   = "Runtime secrets for Smart Parking application services"
   initial_secret_json           = var.app_config_initial_secret_json
   name                          = var.app_config_secret_name
   recovery_window_in_days       = var.app_config_secret_recovery_window_in_days
+}
+
+data "aws_secretsmanager_secret" "app_config_existing" {
+  count = var.create_app_config_secret || local.existing_app_config_secret_arn != "" ? 0 : 1
+
+  name = var.app_config_secret_name
+}
+
+resource "aws_secretsmanager_secret_version" "app_config_runtime" {
+  count = var.manage_app_config_secret_value ? 1 : 0
+
+  secret_id     = local.app_config_secret_arn
+  secret_string = jsonencode(var.app_config_secret_values)
 }
 
 module "booking_sns_notifications" {

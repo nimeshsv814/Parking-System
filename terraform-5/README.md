@@ -71,14 +71,39 @@ After Terraform creates the secret, add this JSON secret value in the AWS consol
 
 Terraform does not store these secret values in state with the default settings. It grants the app EC2 role `secretsmanager:GetSecretValue`, and the app launch template fetches the JSON at boot to build the service env files.
 
-If you already have a secret, keep Terraform from creating one and paste the ARN:
+If you already have a secret named `parking-1`, keep Terraform from creating one and let Terraform look it up by name:
+
+```hcl
+create_app_config_secret = false
+app_config_secret_name   = "parking-1"
+```
+
+You can also paste the ARN directly:
 
 ```hcl
 create_app_config_secret = false
 app_config_secret_arn    = "arn:aws:secretsmanager:us-east-1:<account-id>:secret:parking-1-xxxxxx"
 ```
 
-Optional: Terraform can create the initial secret value version, but the secret value will be stored in Terraform state:
+Optional: Terraform can create or update the JSON secret value version. These values are marked sensitive in Terraform output, but AWS secret values are still stored in Terraform state when this is enabled:
+
+```hcl
+manage_app_config_secret_value = true
+
+app_config_secret_values = {
+  JWT_SECRET          = "change-this-long-random-value"
+  INTERNAL_API_KEY    = "change-this-internal-api-key"
+  SEED_ADMIN_EMAIL    = "admin@parking.com"
+  SEED_ADMIN_PASSWORD = "change-this-admin-password"
+  SEED_USER_EMAIL     = "user@parking.com"
+  SEED_USER_PASSWORD  = "change-this-user-password"
+  RAZORPAY_KEY_ID     = "your-razorpay-key-id"
+  RAZORPAY_KEY_SECRET = "your-razorpay-key-secret"
+  RAZORPAY_CURRENCY   = "INR"
+}
+```
+
+The older raw JSON path is still available when you need it:
 
 ```hcl
 create_app_config_initial_secret_version = true

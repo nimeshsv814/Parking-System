@@ -291,6 +291,39 @@ variable "app_config_initial_secret_json" {
   sensitive   = true
 }
 
+variable "manage_app_config_secret_value" {
+  type        = bool
+  description = "Create or update the app runtime JSON value in the Secrets Manager secret. Secret values are stored in Terraform state when enabled."
+  default     = false
+}
+
+variable "app_config_secret_values" {
+  type = object({
+    JWT_SECRET          = string
+    INTERNAL_API_KEY    = string
+    SEED_ADMIN_EMAIL    = string
+    SEED_ADMIN_PASSWORD = string
+    SEED_USER_EMAIL     = string
+    SEED_USER_PASSWORD  = string
+    RAZORPAY_KEY_ID     = string
+    RAZORPAY_KEY_SECRET = string
+    RAZORPAY_CURRENCY   = string
+  })
+  description = "JSON values written to the app config Secrets Manager secret when manage_app_config_secret_value is true."
+  sensitive   = true
+  default = {
+    JWT_SECRET          = "smartparking_super_secret"
+    INTERNAL_API_KEY    = "smartparking_internal_key"
+    SEED_ADMIN_EMAIL    = "admin@parking.com"
+    SEED_ADMIN_PASSWORD = "Admin@123"
+    SEED_USER_EMAIL     = "user@parking.com"
+    SEED_USER_PASSWORD  = "User@123"
+    RAZORPAY_KEY_ID     = "rzp_test_ShFFMxa9JkqmZu"
+    RAZORPAY_KEY_SECRET = "1I4sLVIvCMWSTUlM5lCZm71j"
+    RAZORPAY_CURRENCY   = "INR"
+  }
+}
+
 variable "enable_edge_stack" {
   type        = bool
   description = "Set true to create Route53, WAF, and CloudFront edge resources"
