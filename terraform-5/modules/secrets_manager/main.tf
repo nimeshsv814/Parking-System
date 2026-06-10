@@ -1,6 +1,5 @@
 resource "aws_secretsmanager_secret" "app_config" {
-  name                    = var.use_name_prefix ? null : var.name
-  name_prefix             = var.use_name_prefix ? "${var.name}-" : null
+  name                    = var.name
   description             = var.description
   recovery_window_in_days = var.recovery_window_in_days
 

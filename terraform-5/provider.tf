@@ -1,0 +1,17 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "registry.terraform.io/hashicorp/aws"
+      version = "6.44.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = var.aws_region
+}
+
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
+}

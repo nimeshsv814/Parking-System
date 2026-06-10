@@ -46,12 +46,11 @@ sqs_notification_queue_arn  = "arn:aws:sqs:us-east-1:<account-id>:smart-parking-
 
 ## AWS Secrets Manager App Config
 
-By default, Terraform creates a Secrets Manager secret with the prefix `smart-parking-app-config-tf4-` and passes its ARN to the app tier. The generated suffix avoids errors when an old secret with the same name already exists or is pending deletion:
+By default, Terraform creates a Secrets Manager secret named `parking-1` and passes its ARN to the app tier:
 
 ```hcl
-create_app_config_secret          = true
-app_config_secret_name            = "smart-parking-app-config-tf4"
-app_config_secret_use_name_prefix = true
+create_app_config_secret = true
+app_config_secret_name   = "parking-1"
 ```
 
 After Terraform creates the secret, add this JSON secret value in the AWS console:
@@ -76,7 +75,7 @@ If you already have a secret, keep Terraform from creating one and paste the ARN
 
 ```hcl
 create_app_config_secret = false
-app_config_secret_arn    = "arn:aws:secretsmanager:us-east-1:<account-id>:secret:smart-parking-app-config-tf4-xxxxxx"
+app_config_secret_arn    = "arn:aws:secretsmanager:us-east-1:<account-id>:secret:parking-1-xxxxxx"
 ```
 
 Optional: Terraform can create the initial secret value version, but the secret value will be stored in Terraform state:
@@ -85,6 +84,29 @@ Optional: Terraform can create the initial secret value version, but the secret 
 create_app_config_initial_secret_version = true
 app_config_initial_secret_json           = "{\"JWT_SECRET\":\"change-this-long-random-value\"}"
 ```
+
+## SNS Booking User Notifications
+
+Terraform creates two SNS topics for booking lifecycle notifications:
+
+- `smart-parking-booking-confirmed`
+- `smart-parking-booking-cancelled`
+
+The app EC2 role gets `sns:Publish` access to both topics, and the app tier passes these environment variables to the booking and notification containers:
+
+```text
+BOOKING_CONFIRMED_SNS_TOPIC_ARN
+BOOKING_CANCELLED_SNS_TOPIC_ARN
+```
+
+Optional static email subscribers can be added with:
+
+```hcl
+booking_confirmed_email_subscribers = ["user@example.com"]
+booking_cancelled_email_subscribers = ["user@example.com"]
+```
+
+Each email address must confirm the AWS SNS subscription before it receives messages. For real per-user booking notifications, the application code must publish the confirmed/cancelled message to the matching topic or dynamically target the user's verified endpoint.
 
 ## Edge Stack: Route53, CloudFront, WAF, Manual ACM
 

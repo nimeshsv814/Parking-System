@@ -200,6 +200,36 @@ variable "sqs_notification_queue_arn" {
   default     = "arn:aws:sqs:us-east-1:*:smart-parking-notifications-queue"
 }
 
+variable "enable_booking_sns_notifications" {
+  type        = bool
+  description = "Create SNS topics for booking confirmed and booking cancelled user notifications"
+  default     = true
+}
+
+variable "booking_confirmed_sns_topic_name" {
+  type        = string
+  description = "SNS topic name for booking confirmation notifications"
+  default     = "smart-parking-booking-confirmed"
+}
+
+variable "booking_cancelled_sns_topic_name" {
+  type        = string
+  description = "SNS topic name for booking cancellation notifications"
+  default     = "smart-parking-booking-cancelled"
+}
+
+variable "booking_confirmed_email_subscribers" {
+  type        = list(string)
+  description = "Static email subscribers for booking confirmation SNS notifications. Each email must confirm the SNS subscription."
+  default     = []
+}
+
+variable "booking_cancelled_email_subscribers" {
+  type        = list(string)
+  description = "Static email subscribers for booking cancellation SNS notifications. Each email must confirm the SNS subscription."
+  default     = []
+}
+
 variable "app_config_secret_arn" {
   type        = string
   description = "Optional existing AWS Secrets Manager secret ARN containing app runtime secrets as JSON. When blank, Terraform can create one."
@@ -214,14 +244,8 @@ variable "create_app_config_secret" {
 
 variable "app_config_secret_name" {
   type        = string
-  description = "Base name or name prefix of the Secrets Manager secret Terraform creates for app runtime secrets"
-  default     = "smart-parking-app-config-tf4"
-}
-
-variable "app_config_secret_use_name_prefix" {
-  type        = bool
-  description = "Use app_config_secret_name as a name prefix so Terraform creates a unique Secrets Manager name and avoids existing-name conflicts"
-  default     = true
+  description = "Name of the Secrets Manager secret Terraform creates for app runtime secrets"
+  default     = "parking-1"
 }
 
 variable "app_config_secret_recovery_window_in_days" {

@@ -51,39 +51,51 @@ module "app_config_secret" {
   description                   = "Runtime secrets for Smart Parking application services"
   initial_secret_json           = var.app_config_initial_secret_json
   name                          = var.app_config_secret_name
-  use_name_prefix               = var.app_config_secret_use_name_prefix
   recovery_window_in_days       = var.app_config_secret_recovery_window_in_days
+}
+
+module "booking_sns_notifications" {
+  count = var.enable_booking_sns_notifications ? 1 : 0
+
+  source = "./modules/sns_notifications"
+
+  booking_cancelled_email_subscribers = var.booking_cancelled_email_subscribers
+  booking_cancelled_topic_name        = var.booking_cancelled_sns_topic_name
+  booking_confirmed_email_subscribers = var.booking_confirmed_email_subscribers
+  booking_confirmed_topic_name        = var.booking_confirmed_sns_topic_name
 }
 
 module "app_tier" {
   source = "./modules/app_tier"
 
-  ami_id                      = var.ami_id
-  app_desired_capacity        = var.app_desired_capacity
-  app_config_secret_arn       = local.app_config_secret_arn
-  app_instance_type           = var.app_instance_type
-  app_max_size                = var.app_max_size
-  app_min_size                = var.app_min_size
-  app_private_subnet_ids      = values(module.network.app_private_subnet_ids)
-  app_security_group_id       = module.security.app_security_group_id
-  app_target_group_arn        = module.load_balancers.app_target_group_arn
-  auth_service_image          = var.auth_service_image
-  auth_users_table            = var.auth_users_table
-  aws_region                  = var.aws_region
-  booking_service_image       = var.booking_service_image
-  booking_table               = var.booking_table
-  key_name                    = var.key_name
-  notification_service_image  = var.notification_service_image
-  notification_table          = var.notification_table
-  parking_service_image       = var.parking_service_image
-  parking_slots_table         = var.parking_slots_table
-  payment_service_image       = var.payment_service_image
-  payment_table               = var.payment_table
-  scheduler_service_image     = var.scheduler_service_image
-  service_target_group_arns   = module.load_balancers.service_target_group_arns
-  sqs_notification_queue_arn  = var.sqs_notification_queue_arn
-  sqs_notification_queue_name = var.sqs_notification_queue_name
-  sqs_notification_queue_url  = var.sqs_notification_queue_url
+  ami_id                          = var.ami_id
+  app_desired_capacity            = var.app_desired_capacity
+  app_config_secret_arn           = local.app_config_secret_arn
+  app_instance_type               = var.app_instance_type
+  app_max_size                    = var.app_max_size
+  app_min_size                    = var.app_min_size
+  app_private_subnet_ids          = values(module.network.app_private_subnet_ids)
+  app_security_group_id           = module.security.app_security_group_id
+  app_target_group_arn            = module.load_balancers.app_target_group_arn
+  auth_service_image              = var.auth_service_image
+  auth_users_table                = var.auth_users_table
+  aws_region                      = var.aws_region
+  booking_service_image           = var.booking_service_image
+  booking_table                   = var.booking_table
+  booking_cancelled_sns_topic_arn = var.enable_booking_sns_notifications ? module.booking_sns_notifications[0].booking_cancelled_topic_arn : ""
+  booking_confirmed_sns_topic_arn = var.enable_booking_sns_notifications ? module.booking_sns_notifications[0].booking_confirmed_topic_arn : ""
+  key_name                        = var.key_name
+  notification_service_image      = var.notification_service_image
+  notification_table              = var.notification_table
+  parking_service_image           = var.parking_service_image
+  parking_slots_table             = var.parking_slots_table
+  payment_service_image           = var.payment_service_image
+  payment_table                   = var.payment_table
+  scheduler_service_image         = var.scheduler_service_image
+  service_target_group_arns       = module.load_balancers.service_target_group_arns
+  sqs_notification_queue_arn      = var.sqs_notification_queue_arn
+  sqs_notification_queue_name     = var.sqs_notification_queue_name
+  sqs_notification_queue_url      = var.sqs_notification_queue_url
 }
 
 module "web_tier" {

@@ -2,10 +2,6 @@ variable "name" {
   type = string
 }
 
-variable "use_name_prefix" {
-  type = bool
-}
-
 variable "description" {
   type = string
 }
