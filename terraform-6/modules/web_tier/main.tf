@@ -1,8 +1,39 @@
+resource "aws_iam_role" "web_ssm_role" {
+  name = "quickslot-web-ssm-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "web_ssm_managed_instance_core" {
+  role       = aws_iam_role.web_ssm_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_instance_profile" "web_ssm_profile" {
+  name = "quickslot-web-ssm-profile"
+  role = aws_iam_role.web_ssm_role.name
+}
+
 resource "aws_launch_template" "web" {
   name_prefix   = "smart-parking-web-"
   image_id      = var.ami_id
   instance_type = var.web_instance_type
   key_name      = var.key_name
+
+  iam_instance_profile {
+    name = aws_iam_instance_profile.web_ssm_profile.name
+  }
 
   network_interfaces {
     associate_public_ip_address = true
@@ -18,12 +49,25 @@ FRONTEND_IMAGE="${var.frontend_image}"
 export DEBIAN_FRONTEND=noninteractive
 
 apt-get update -y
-apt-get install -y docker.io nginx
+apt-get install -y docker.io nginx snapd
+
+systemctl enable snapd
+systemctl start snapd
+
+if ! systemctl list-unit-files | grep -q '^snap.amazon-ssm-agent.amazon-ssm-agent.service'; then
+  for attempt in 1 2 3 4 5 6; do
+    snap wait system seed.loaded && break
+    sleep 10
+  done
+  snap install amazon-ssm-agent --classic
+fi
 
 systemctl enable docker
 systemctl start docker
 systemctl enable nginx
 systemctl start nginx
+systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
+systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
 
 rm -f /etc/nginx/sites-enabled/default
 
@@ -202,7 +246,7 @@ resource "aws_autoscaling_group" "web" {
 
   launch_template {
     id      = aws_launch_template.web.id
-    version = "$Latest"
+    version = aws_launch_template.web.latest_version
   }
 
   instance_refresh {

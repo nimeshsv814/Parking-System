@@ -226,6 +226,79 @@ The app and web Auto Scaling Groups send these events to the topic:
 
 After `terraform apply`, open the AWS SNS confirmation email sent to `nimeshsv814@gmail.com` and confirm the subscription. Emails will not arrive until the subscription is confirmed.
 
+## CloudWatch and EventBridge Observability
+
+`terraform-6` creates CloudWatch log groups for backend containers:
+
+```text
+/quickslot/app/auth-service
+/quickslot/app/parking-service
+/quickslot/app/booking-service
+/quickslot/app/payment-service
+/quickslot/app/scheduler-service
+/quickslot/app/notification-service
+```
+
+The app launch template configures Docker with the `awslogs` log driver, so new app EC2 instances send container logs to these groups. The app EC2 IAM role can create log streams and write log events.
+
+Log retention defaults to 14 days:
+
+```hcl
+cloudwatch_log_retention_days = 14
+```
+
+Terraform also creates CloudWatch alarms for:
+
+- external ALB target 5XX errors
+- internal app target group unhealthy hosts
+- payment target group unhealthy hosts
+- notification DLQ visible messages
+- app Auto Scaling Group high CPU
+
+To receive alarm emails and EventBridge invoice notifications, add subscribers:
+
+```hcl
+observability_alert_email_subscribers = ["admin@example.com"]
+```
+
+Each email address must confirm the SNS subscription before messages arrive.
+
+EventBridge is enabled for the payment invoice S3 bucket. When a new invoice PDF is created under `payment-invoices/*.pdf`, EventBridge publishes a message to the observability SNS topic.
+
+## SSM Session Manager
+
+`terraform-6` enables AWS Systems Manager Session Manager for app and web EC2 instances.
+
+The app EC2 role and web EC2 role attach the AWS managed policy:
+
+```text
+AmazonSSMManagedInstanceCore
+```
+
+The app and web launch templates install and start the SSM agent during boot. After `terraform apply` and instance refresh, you can connect without SSH:
+
+```text
+AWS Console -> Systems Manager -> Session Manager -> Start session
+```
+
+You can also use Run Command for checks such as:
+
+```bash
+docker ps
+docker logs payment-service
+cat /opt/smart-parking-deploy-status.txt
+```
+
+For reliable access to private app instances, Terraform also creates VPC interface endpoints for:
+
+```text
+ssm
+ssmmessages
+ec2messages
+```
+
+If instances do not appear immediately, wait a few minutes after the new EC2 instances boot, then check Systems Manager Fleet Manager or Managed Nodes.
+
 ## Edge Stack: Route53, CloudFront, WAF, Manual ACM
 
 This folder can create:

@@ -90,6 +90,17 @@ resource "aws_iam_role_policy" "app_dynamodb_policy" {
         Resource = [
           var.payment_invoice_kms_key_arn
         ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream",
+          "logs:DescribeLogStreams",
+          "logs:PutLogEvents"
+        ]
+        Resource = [
+          for log_group_arn in var.app_log_group_arns : "${log_group_arn}:*"
+        ]
       }
       ],
       var.app_config_secret_arn != "" ? [
@@ -115,6 +126,11 @@ resource "aws_iam_role_policy" "app_dynamodb_policy" {
       ] : []
     )
   })
+}
+
+resource "aws_iam_role_policy_attachment" "app_ssm_managed_instance_core" {
+  role       = aws_iam_role.app_dynamodb_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 resource "aws_iam_instance_profile" "app_dynamodb_profile" {
@@ -154,12 +170,25 @@ APP_NETWORK="smart-parking-app"
 export DEBIAN_FRONTEND=noninteractive
 
 apt-get update -y
-apt-get install -y awscli docker.io jq nginx
+apt-get install -y awscli docker.io jq nginx snapd
+
+systemctl enable snapd
+systemctl start snapd
+
+if ! systemctl list-unit-files | grep -q '^snap.amazon-ssm-agent.amazon-ssm-agent.service'; then
+  for attempt in 1 2 3 4 5 6; do
+    snap wait system seed.loaded && break
+    sleep 10
+  done
+  snap install amazon-ssm-agent --classic
+fi
 
 systemctl enable docker
 systemctl start docker
 systemctl enable nginx
 systemctl start nginx
+systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
+systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
 
 mkdir -p "$ENV_DIR"
 docker network create "$APP_NETWORK" || true
@@ -278,6 +307,7 @@ run_service_container() {
   env_file="$3"
   host_port="$4"
   container_port="$5"
+  log_group="$6"
 
   docker pull "$image"
   docker rm -f "$container_name" || true
@@ -286,16 +316,20 @@ run_service_container() {
     --restart unless-stopped \
     --network "$APP_NETWORK" \
     --env-file "$env_file" \
+    --log-driver awslogs \
+    --log-opt awslogs-region=${var.aws_region} \
+    --log-opt "awslogs-group=$log_group" \
+    --log-opt "awslogs-stream=$container_name/$(hostname)" \
     -p "127.0.0.1:$host_port:$container_port" \
     "$image"
 }
 
-run_service_container "auth-service" "$AUTH_SERVICE_IMAGE" "$ENV_DIR/auth-service.env" 4001 4001
-run_service_container "parking-service" "$PARKING_SERVICE_IMAGE" "$ENV_DIR/parking-service.env" 4002 4002
-run_service_container "notification-service" "$NOTIFICATION_SERVICE_IMAGE" "$ENV_DIR/notification-service.env" 4006 4006
-run_service_container "booking-service" "$BOOKING_SERVICE_IMAGE" "$ENV_DIR/booking-service.env" 4003 4003
-run_service_container "payment-service" "$PAYMENT_SERVICE_IMAGE" "$ENV_DIR/payment-service.env" 4004 4004
-run_service_container "scheduler-service" "$SCHEDULER_SERVICE_IMAGE" "$ENV_DIR/scheduler-service.env" 4005 4005
+run_service_container "auth-service" "$AUTH_SERVICE_IMAGE" "$ENV_DIR/auth-service.env" 4001 4001 "${var.app_log_group_names.auth}"
+run_service_container "parking-service" "$PARKING_SERVICE_IMAGE" "$ENV_DIR/parking-service.env" 4002 4002 "${var.app_log_group_names.parking}"
+run_service_container "notification-service" "$NOTIFICATION_SERVICE_IMAGE" "$ENV_DIR/notification-service.env" 4006 4006 "${var.app_log_group_names.notification}"
+run_service_container "booking-service" "$BOOKING_SERVICE_IMAGE" "$ENV_DIR/booking-service.env" 4003 4003 "${var.app_log_group_names.booking}"
+run_service_container "payment-service" "$PAYMENT_SERVICE_IMAGE" "$ENV_DIR/payment-service.env" 4004 4004 "${var.app_log_group_names.payment}"
+run_service_container "scheduler-service" "$SCHEDULER_SERVICE_IMAGE" "$ENV_DIR/scheduler-service.env" 4005 4005 "${var.app_log_group_names.scheduler}"
 
 rm -f /etc/nginx/sites-enabled/default
 

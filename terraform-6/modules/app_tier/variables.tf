@@ -30,6 +30,14 @@ variable "app_config_secret_arn" {
   type = string
 }
 
+variable "app_log_group_names" {
+  type = map(string)
+}
+
+variable "app_log_group_arns" {
+  type = list(string)
+}
+
 variable "app_private_subnet_ids" {
   type = list(string)
 }

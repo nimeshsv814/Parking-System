@@ -96,6 +96,8 @@ module "app_tier" {
   app_desired_capacity            = var.app_desired_capacity
   app_config_secret_arn           = local.app_config_secret_arn
   app_instance_type               = var.app_instance_type
+  app_log_group_arns              = values(local.app_log_group_arns)
+  app_log_group_names             = local.app_log_group_names
   app_max_size                    = var.app_max_size
   app_min_size                    = var.app_min_size
   app_private_subnet_ids          = values(module.network.app_private_subnet_ids)

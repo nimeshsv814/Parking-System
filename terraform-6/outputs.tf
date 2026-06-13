@@ -127,6 +127,17 @@ output "payment_invoice_storage" {
   }
 }
 
+output "observability" {
+  description = "CloudWatch and EventBridge resources for application operations"
+  value = {
+    app_log_groups                 = local.app_log_group_names
+    alert_topic_arn                = aws_sns_topic.observability_alerts.arn
+    invoice_eventbridge_rule_name  = try(aws_cloudwatch_event_rule.payment_invoice_pdf_created[0].name, null)
+    invoice_eventbridge_enabled    = var.enable_invoice_eventbridge_notifications
+    alert_email_subscription_count = length(var.observability_alert_email_subscribers)
+  }
+}
+
 output "booking_confirmed_sns_topic_arn" {
   description = "SNS topic ARN for booking confirmation user notifications"
   value       = try(module.booking_sns_notifications[0].booking_confirmed_topic_arn, null)

@@ -157,7 +157,7 @@ variable "booking_service_image" {
 
 variable "payment_service_image" {
   type    = string
-  default = "docker.io/nimeshsv814/tf-payment-service:v4.0.2"
+  default = "docker.io/nimeshsv814/tf-payment-service:v4.0.3"
 }
 
 variable "scheduler_service_image" {
@@ -293,6 +293,36 @@ variable "booking_cancelled_email_subscribers" {
 variable "enable_booking_sns_to_sqs_subscription" {
   type        = bool
   description = "Subscribe the existing notification SQS queue to booking SNS topics so the notification service can email the booking user"
+  default     = true
+}
+
+variable "cloudwatch_log_retention_days" {
+  type        = number
+  description = "Retention period in days for backend service CloudWatch log groups"
+  default     = 14
+}
+
+variable "observability_alert_email_subscribers" {
+  type        = list(string)
+  description = "Email addresses subscribed to CloudWatch alarm and EventBridge invoice notifications. Each email must confirm the SNS subscription."
+  default     = []
+}
+
+variable "alb_5xx_alarm_threshold" {
+  type        = number
+  description = "External ALB target 5XX count threshold over one 5-minute period"
+  default     = 10
+}
+
+variable "app_cpu_alarm_threshold" {
+  type        = number
+  description = "Average app ASG CPU utilization threshold percentage over two 5-minute periods"
+  default     = 80
+}
+
+variable "enable_invoice_eventbridge_notifications" {
+  type        = bool
+  description = "Publish S3 payment invoice PDF creation events to the observability SNS topic through EventBridge"
   default     = true
 }
 
