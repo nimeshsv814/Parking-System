@@ -157,7 +157,7 @@ variable "booking_service_image" {
 
 variable "payment_service_image" {
   type    = string
-  default = "docker.io/nimeshsv814/tf-payment-service:v4.0.1"
+  default = "docker.io/nimeshsv814/tf-payment-service:v4.0.2"
 }
 
 variable "scheduler_service_image" {

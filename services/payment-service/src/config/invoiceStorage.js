@@ -1,4 +1,5 @@
 const { PutObjectCommand, S3Client } = require("@aws-sdk/client-s3");
+const PDFDocument = require("pdfkit");
 
 const region = process.env.AWS_REGION || "us-east-1";
 const bucketName = process.env.PAYMENT_INVOICE_BUCKET;
@@ -10,8 +11,63 @@ const buildInvoiceKey = ({ paymentId, bookingId }) => {
   const safeBookingId = String(bookingId || "unknown").replace(/[^A-Za-z0-9._-]/g, "-");
   const safePaymentId = String(paymentId || Date.now()).replace(/[^A-Za-z0-9._-]/g, "-");
   const datePrefix = new Date().toISOString().slice(0, 10);
-  return `payment-invoices/${datePrefix}/${safeBookingId}/${safePaymentId}.json`;
+  return `payment-invoices/${datePrefix}/${safeBookingId}/${safePaymentId}.pdf`;
 };
+
+const addDetail = (doc, label, value) => {
+  doc.font("Helvetica-Bold").text(`${label}: `, { continued: true });
+  doc.font("Helvetica").text(value == null || value === "" ? "N/A" : String(value));
+};
+
+const buildInvoicePdf = ({ invoice, payment, booking }) =>
+  new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: "A4", margin: 50 });
+    const chunks = [];
+
+    doc.on("data", (chunk) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+
+    doc.font("Helvetica-Bold").fontSize(22).text("QuickSlot Payment Invoice");
+    doc.moveDown(0.5);
+    doc.font("Helvetica").fontSize(10).text("Smart Parking System");
+    doc.moveDown(1.5);
+
+    doc.fontSize(12);
+    addDetail(doc, "Invoice ID", invoice.invoiceId);
+    addDetail(doc, "Generated At", invoice.createdAt);
+    addDetail(doc, "Payment Provider", invoice.provider);
+
+    doc.moveDown();
+    doc.font("Helvetica-Bold").fontSize(15).text("Payment Details");
+    doc.moveDown(0.4);
+    doc.fontSize(12);
+    addDetail(doc, "Payment ID", payment.paymentId);
+    addDetail(doc, "Booking ID", payment.bookingId);
+    addDetail(doc, "User ID", payment.userId);
+    addDetail(doc, "Amount", payment.amount);
+    addDetail(doc, "Method", payment.method);
+    addDetail(doc, "Status", payment.status);
+    addDetail(doc, "Transaction Ref", payment.transactionRef);
+    addDetail(doc, "Razorpay Order ID", payment.razorpayOrderId);
+    addDetail(doc, "Razorpay Payment ID", payment.razorpayPaymentId);
+
+    doc.moveDown();
+    doc.font("Helvetica-Bold").fontSize(15).text("Booking Details");
+    doc.moveDown(0.4);
+    doc.fontSize(12);
+    addDetail(doc, "Slot ID", booking.slotId);
+    addDetail(doc, "User Email", booking.userEmail);
+    addDetail(doc, "Booking Status", booking.status);
+    addDetail(doc, "Paid At", booking.paidAt);
+
+    doc.moveDown(2);
+    doc.font("Helvetica").fontSize(10).text("This invoice was generated automatically by QuickSlot.", {
+      align: "center",
+    });
+
+    doc.end();
+  });
 
 const uploadPaymentInvoice = async ({ payment, booking, provider = "razorpay" }) => {
   if (!bucketName) {
@@ -28,36 +84,18 @@ const uploadPaymentInvoice = async ({ payment, booking, provider = "razorpay" })
     invoiceId: `INV-${payment.paymentId}`,
     createdAt,
     provider,
-    payment: {
-      paymentId: payment.paymentId,
-      bookingId: payment.bookingId,
-      userId: payment.userId,
-      amount: payment.amount,
-      method: payment.method,
-      status: payment.status,
-      transactionRef: payment.transactionRef,
-      razorpayOrderId: payment.razorpayOrderId,
-      razorpayPaymentId: payment.razorpayPaymentId,
-    },
-    booking: {
-      bookingId: booking.bookingId,
-      userId: booking.userId,
-      userEmail: booking.userEmail,
-      slotId: booking.slotId,
-      amount: booking.amount,
-      status: booking.status,
-      paidAt: booking.paidAt,
-    },
   };
+  const pdfBody = await buildInvoicePdf({ invoice, payment, booking });
 
   const command = new PutObjectCommand({
     Bucket: bucketName,
     Key: key,
-    Body: JSON.stringify(invoice, null, 2),
-    ContentType: "application/json",
+    Body: pdfBody,
+    ContentType: "application/pdf",
     ServerSideEncryption: "aws:kms",
     SSEKMSKeyId: kmsKeyArn,
     Metadata: {
+      invoiceId: invoice.invoiceId,
       paymentId: String(payment.paymentId),
       bookingId: String(payment.bookingId),
       userId: String(payment.userId),
