@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const Razorpay = require("razorpay");
 const Payment = require("../models/Payment");
 const { bookingClient, internalHeaders, notificationClient } = require("../config/http");
+const { uploadPaymentInvoice } = require("../services/invoiceStorage");
 
 const buildPaymentId = () => `PAY-${Date.now()}${Math.floor(Math.random() * 1000)}`;
 const buildTransactionRef = () => `TXN-${Date.now()}${Math.floor(Math.random() * 10000)}`;
@@ -32,6 +33,19 @@ const sendNotification = async ({ recipientUserId, bookingId, type, message, met
     );
   } catch (error) {
     console.error("Payment notification failed", error.response?.data || error.message);
+  }
+};
+
+const attachInvoice = async ({ payment, booking, provider }) => {
+  try {
+    const invoiceFields = await uploadPaymentInvoice({ payment, booking, provider });
+    if (!invoiceFields) {
+      return payment;
+    }
+    return Payment.updatePayment(payment.paymentId, invoiceFields);
+  } catch (error) {
+    console.error("Payment invoice upload failed", error.message);
+    return payment;
   }
 };
 
@@ -72,16 +86,21 @@ const processPayment = async (req, res) => {
         {},
         { headers: internalHeaders() }
       );
+      const paymentWithInvoice = await attachInvoice({
+        payment,
+        booking: confirmResponse.data.booking,
+        provider: "simulated",
+      });
       await sendNotification({
         recipientUserId: booking.userId,
         bookingId,
         type: "payment_success",
         message: `Payment successful for booking ${bookingId}.`,
-        metadata: { amount: payableAmount, method, paymentId: payment.paymentId },
+        metadata: { amount: payableAmount, method, paymentId: paymentWithInvoice.paymentId },
       });
       return res.json({
         message: "Payment successful",
-        payment,
+        payment: paymentWithInvoice,
         booking: confirmResponse.data.booking,
       });
     }
@@ -251,6 +270,12 @@ const verifyRazorpayPayment = async (req, res) => {
       { headers: internalHeaders() }
     );
 
+    const paymentWithInvoice = await attachInvoice({
+      payment: updatedPayment,
+      booking: confirmResponse.data.booking,
+      provider: "razorpay",
+    });
+
     await sendNotification({
       recipientUserId: booking.userId,
       bookingId,
@@ -259,14 +284,14 @@ const verifyRazorpayPayment = async (req, res) => {
       metadata: {
         amount: payableAmount,
         method: "razorpay",
-        paymentId: updatedPayment.paymentId,
+        paymentId: paymentWithInvoice.paymentId,
         razorpayPaymentId: razorpay_payment_id,
       },
     });
 
     return res.json({
       message: "Payment verified",
-      payment: updatedPayment,
+      payment: paymentWithInvoice,
       booking: confirmResponse.data.booking,
     });
   } catch (error) {
