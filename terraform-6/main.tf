@@ -186,7 +186,7 @@ module "waf" {
     aws = aws.us_east_1
   }
 
-  name       = "smart-parking-cloudfront-waf"
+  name       = "quickslot-edge-web-acl"
   rate_limit = var.waf_rate_limit
 }
 

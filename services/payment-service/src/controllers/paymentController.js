@@ -2,7 +2,7 @@ const crypto = require("crypto");
 const Razorpay = require("razorpay");
 const Payment = require("../models/Payment");
 const { bookingClient, internalHeaders, notificationClient } = require("../config/http");
-const { uploadPaymentInvoice } = require("../services/invoiceStorage");
+const { uploadPaymentInvoice } = require("../config/invoiceStorage");
 
 const buildPaymentId = () => `PAY-${Date.now()}${Math.floor(Math.random() * 1000)}`;
 const buildTransactionRef = () => `TXN-${Date.now()}${Math.floor(Math.random() * 10000)}`;

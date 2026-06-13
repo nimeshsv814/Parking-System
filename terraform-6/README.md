@@ -106,11 +106,11 @@ terraform import aws_dynamodb_table.notifications smart-parking-notifications
 
 ## AWS Secrets Manager App Config
 
-By default, Terraform creates a Secrets Manager secret named `quickslot-2` and passes its ARN to the app tier:
+By default, Terraform creates a Secrets Manager secret named `quickslot-01` and passes its ARN to the app tier:
 
 ```hcl
 create_app_config_secret = true
-app_config_secret_name   = "quickslot-2"
+app_config_secret_name   = "quickslot-01"
 ```
 
 Terraform also creates a secret value version by default from `app_config_secret_values`, so the JSON can be retrieved from Secrets Manager after `terraform apply`:
@@ -131,18 +131,18 @@ Terraform also creates a secret value version by default from `app_config_secret
 
 When `manage_app_config_secret_value = true`, Terraform stores these secret values in Terraform state. Protect the state file/backend carefully. Terraform grants the app EC2 role `secretsmanager:GetSecretValue`, and the app launch template fetches the JSON at boot to build the service env files.
 
-If you already have a secret named `quickslot-2`, keep Terraform from creating one and let Terraform look it up by name:
+If you already have a secret named `quickslot-01`, keep Terraform from creating one and let Terraform look it up by name:
 
 ```hcl
 create_app_config_secret = false
-app_config_secret_name   = "quickslot-2"
+app_config_secret_name   = "quickslot-01"
 ```
 
 You can also paste the ARN directly:
 
 ```hcl
 create_app_config_secret = false
-app_config_secret_arn    = "arn:aws:secretsmanager:us-east-1:<account-id>:secret:quickslot-2-xxxxxx"
+app_config_secret_arn    = "arn:aws:secretsmanager:us-east-1:<account-id>:secret:quickslot-01-xxxxxx"
 ```
 
 Terraform can create or update the JSON secret value version. These values are marked sensitive in Terraform output, but AWS secret values are still stored in Terraform state when this is enabled:

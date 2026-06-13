@@ -157,7 +157,7 @@ variable "booking_service_image" {
 
 variable "payment_service_image" {
   type    = string
-  default = "docker.io/nimeshsv814/tf-payment-service:v4.0.0"
+  default = "docker.io/nimeshsv814/tf-payment-service:v4.0.1"
 }
 
 variable "scheduler_service_image" {
@@ -329,7 +329,7 @@ variable "create_app_config_secret" {
 variable "app_config_secret_name" {
   type        = string
   description = "Name of the Secrets Manager secret Terraform creates for app runtime secrets"
-  default     = "quickslot-2"
+  default     = "quickslot-01"
 }
 
 variable "app_config_secret_recovery_window_in_days" {

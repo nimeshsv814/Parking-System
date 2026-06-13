@@ -6,7 +6,7 @@ locals {
 }
 
 resource "aws_iam_role" "app_dynamodb_role" {
-  name = "smart-parking-app-dynamodb-role"
+  name = "quickslot-app-runtime-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -23,7 +23,7 @@ resource "aws_iam_role" "app_dynamodb_role" {
 }
 
 resource "aws_iam_role_policy" "app_dynamodb_policy" {
-  name = "smart-parking-app-dynamodb-policy"
+  name = "quickslot-app-runtime-policy"
   role = aws_iam_role.app_dynamodb_role.id
 
   policy = jsonencode({
@@ -118,7 +118,7 @@ resource "aws_iam_role_policy" "app_dynamodb_policy" {
 }
 
 resource "aws_iam_instance_profile" "app_dynamodb_profile" {
-  name = "smart-parking-app-dynamodb-profile"
+  name = "quickslot-app-runtime-profile"
   role = aws_iam_role.app_dynamodb_role.name
 }
 
