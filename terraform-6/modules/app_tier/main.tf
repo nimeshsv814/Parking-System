@@ -58,6 +58,38 @@ resource "aws_iam_role_policy" "app_dynamodb_policy" {
         Resource = [
           var.sqs_notification_queue_arn
         ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject"
+        ]
+        Resource = [
+          "${var.payment_invoice_bucket_arn}/*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket"
+        ]
+        Resource = [
+          var.payment_invoice_bucket_arn
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:DescribeKey",
+          "kms:Encrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = [
+          var.payment_invoice_kms_key_arn
+        ]
       }
       ],
       var.app_config_secret_arn != "" ? [
@@ -204,6 +236,8 @@ cat <<EOT > "$ENV_DIR/payment-service.env"
 PORT=4004
 AWS_REGION=${var.aws_region}
 PAYMENT_TABLE=${var.payment_table}
+PAYMENT_INVOICE_BUCKET=${var.payment_invoice_bucket_name}
+PAYMENT_INVOICE_KMS_KEY_ARN=${var.payment_invoice_kms_key_arn}
 SQS_NOTIFICATION_QUEUE_NAME=${var.sqs_notification_queue_name}
 SQS_NOTIFICATION_QUEUE_URL=${var.sqs_notification_queue_url}
 JWT_SECRET=$JWT_SECRET_VALUE

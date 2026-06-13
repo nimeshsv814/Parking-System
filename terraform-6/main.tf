@@ -81,6 +81,14 @@ module "booking_sns_notifications" {
   notification_queue_url              = local.effective_sqs_notification_queue_url
 }
 
+module "storage" {
+  source = "./modules/storage"
+
+  bucket_name                     = var.payment_invoice_bucket_name
+  force_destroy                   = var.payment_invoice_bucket_force_destroy
+  kms_key_deletion_window_in_days = var.payment_invoice_kms_key_deletion_window_in_days
+}
+
 module "app_tier" {
   source = "./modules/app_tier"
 
@@ -107,6 +115,9 @@ module "app_tier" {
   notification_table              = var.notification_table
   parking_service_image           = var.parking_service_image
   parking_slots_table             = var.parking_slots_table
+  payment_invoice_bucket_arn      = module.storage.payment_invoice_bucket_arn
+  payment_invoice_bucket_name     = module.storage.payment_invoice_bucket_name
+  payment_invoice_kms_key_arn     = module.storage.payment_invoice_kms_key_arn
   payment_service_image           = var.payment_service_image
   payment_table                   = var.payment_table
   scheduler_service_image         = var.scheduler_service_image

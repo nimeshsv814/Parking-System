@@ -296,6 +296,24 @@ variable "enable_booking_sns_to_sqs_subscription" {
   default     = true
 }
 
+variable "payment_invoice_bucket_name" {
+  type        = string
+  description = "Optional globally unique S3 bucket name for KMS-encrypted payment invoices. When blank, Terraform generates one from the AWS account and region."
+  default     = ""
+}
+
+variable "payment_invoice_bucket_force_destroy" {
+  type        = bool
+  description = "Allow Terraform to delete the payment invoice bucket even when objects exist. Keep false for production."
+  default     = false
+}
+
+variable "payment_invoice_kms_key_deletion_window_in_days" {
+  type        = number
+  description = "Waiting period before deleting the KMS key used for payment invoices."
+  default     = 7
+}
+
 variable "app_config_secret_arn" {
   type        = string
   description = "Optional existing AWS Secrets Manager secret ARN containing app runtime secrets as JSON. When blank, Terraform can create one."

@@ -94,6 +94,18 @@ variable "payment_table" {
   type = string
 }
 
+variable "payment_invoice_bucket_name" {
+  type = string
+}
+
+variable "payment_invoice_bucket_arn" {
+  type = string
+}
+
+variable "payment_invoice_kms_key_arn" {
+  type = string
+}
+
 variable "notification_table" {
   type = string
 }

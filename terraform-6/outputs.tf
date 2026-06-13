@@ -118,6 +118,15 @@ output "sqs_notification_queue" {
   }
 }
 
+output "payment_invoice_storage" {
+  description = "KMS-encrypted S3 storage used by payment-service for invoice files"
+  value = {
+    bucket_name = module.storage.payment_invoice_bucket_name
+    bucket_arn  = module.storage.payment_invoice_bucket_arn
+    kms_key_arn = module.storage.payment_invoice_kms_key_arn
+  }
+}
+
 output "booking_confirmed_sns_topic_arn" {
   description = "SNS topic ARN for booking confirmation user notifications"
   value       = try(module.booking_sns_notifications[0].booking_confirmed_topic_arn, null)
