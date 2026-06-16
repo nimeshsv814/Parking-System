@@ -125,7 +125,9 @@ Terraform also creates a secret value version by default from `app_config_secret
   "SEED_USER_PASSWORD": "change-this-user-password",
   "RAZORPAY_KEY_ID": "your-razorpay-key-id",
   "RAZORPAY_KEY_SECRET": "your-razorpay-key-secret",
-  "RAZORPAY_CURRENCY": "INR"
+  "RAZORPAY_CURRENCY": "INR",
+  "GEMINI_API_KEY": "your-gemini-api-key",
+  "GEMINI_MODEL": "gemini-3.5-flash"
 }
 ```
 
@@ -160,6 +162,8 @@ app_config_secret_values = {
   RAZORPAY_KEY_ID     = "your-razorpay-key-id"
   RAZORPAY_KEY_SECRET = "your-razorpay-key-secret"
   RAZORPAY_CURRENCY   = "INR"
+  GEMINI_API_KEY      = "your-gemini-api-key"
+  GEMINI_MODEL        = "gemini-3.5-flash"
 }
 ```
 

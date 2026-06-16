@@ -137,7 +137,7 @@ variable "asg_notification_topic_name" {
 
 variable "frontend_image" {
   type    = string
-  default = "docker.io/nimeshsv814/tf-frontend:v3.0.0"
+  default = "docker.io/nimeshsv814/tf-frontend:v5.0.0"
 }
 
 variable "auth_service_image" {
@@ -147,12 +147,12 @@ variable "auth_service_image" {
 
 variable "parking_service_image" {
   type    = string
-  default = "docker.io/nimeshsv814/tf-parking-service:v4.0.0"
+  default = "docker.io/nimeshsv814/tf-parking-service:v5.0.0"
 }
 
 variable "booking_service_image" {
   type    = string
-  default = "docker.io/nimeshsv814/tf-booking-service:v4.0.0"
+  default = "docker.io/nimeshsv814/tf-booking-service:v5.0.0"
 }
 
 variable "payment_service_image" {
@@ -398,6 +398,8 @@ variable "app_config_secret_values" {
     RAZORPAY_KEY_ID     = string
     RAZORPAY_KEY_SECRET = string
     RAZORPAY_CURRENCY   = string
+    GEMINI_API_KEY      = optional(string, "")
+    GEMINI_MODEL        = optional(string, "gemini-3.5-flash")
   })
   description = "JSON values written to the app config Secrets Manager secret when manage_app_config_secret_value is true."
   sensitive   = true
@@ -411,6 +413,8 @@ variable "app_config_secret_values" {
     RAZORPAY_KEY_ID     = "rzp_test_ShFFMxa9JkqmZu"
     RAZORPAY_KEY_SECRET = "1I4sLVIvCMWSTUlM5lCZm71j"
     RAZORPAY_CURRENCY   = "INR"
+    GEMINI_API_KEY      = ""
+    GEMINI_MODEL        = "gemini-3.5-flash"
   }
 }
 
