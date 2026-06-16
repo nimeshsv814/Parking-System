@@ -85,6 +85,16 @@ const getSlotInternal = async (req, res) => {
   }
 };
 
+const listSlotsInternal = async (_req, res) => {
+  try {
+    await Slot.repairZeroPrices(DEFAULT_SLOT_PRICE);
+    const slots = await Slot.listSlots();
+    return res.json(slots.map(normalizeSlotPrice));
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to load slots", error: error.message });
+  }
+};
+
 const reserveSlotInternal = async (req, res) => {
   try {
     const { slotId } = req.params;
@@ -131,6 +141,7 @@ const occupySlotInternal = async (req, res) => {
 module.exports = {
   createSlot,
   getSlotInternal,
+  listSlotsInternal,
   listAvailableSlots,
   listSlots,
   occupySlotInternal,

@@ -1,5 +1,6 @@
 const Booking = require("../models/Booking");
 const { internalHeaders, notificationClient, parkingClient } = require("../config/http");
+const { predictPaymentRisk } = require("../services/paymentRiskService");
 
 const buildBookingId = () => `BKG-${Date.now()}${Math.floor(Math.random() * 1000)}`;
 const DEFAULT_BOOKING_AMOUNT = 50;
@@ -263,6 +264,48 @@ const expireBookingInternal = async (req, res) => {
 
 const expirePendingBookings = async (_req, res) => {
   try {
+    const now = new Date();
+    const allBookings = await Booking.listBookings({ isAdmin: true });
+    const pendingBookings = await Booking.findPendingBookings();
+    const reminderWindowMinutes = Number(process.env.PAYMENT_RISK_REMINDER_MINUTES || 3);
+    const highRiskBookings = [];
+
+    for (const booking of pendingBookings) {
+      if (!booking.expiresAt || new Date(booking.expiresAt).getTime() <= now.getTime()) {
+        continue;
+      }
+
+      const risk = predictPaymentRisk({
+        booking,
+        bookings: allBookings,
+        now,
+        holdMinutes: Number(process.env.BOOKING_HOLD_MINUTES || 10),
+      });
+      const remainingMs = new Date(booking.expiresAt).getTime() - now.getTime();
+      const insideReminderWindow = remainingMs <= reminderWindowMinutes * 60 * 1000;
+      const alreadyReminded = Boolean(booking.riskReminderSentAt);
+
+      if (risk.riskLevel === "HIGH") {
+        console.log("High pending-payment expiry risk:", risk);
+        highRiskBookings.push(risk);
+      }
+
+      if (risk.riskLevel === "HIGH" && insideReminderWindow && !alreadyReminded) {
+        await sendNotification({
+          recipientUserId: booking.userId,
+          bookingId: booking.bookingId,
+          type: "payment_reminder",
+          message: `Booking ${booking.bookingId} may expire soon. Please complete payment to keep slot ${booking.slotId}.`,
+          metadata: { slotId: booking.slotId, riskScore: risk.riskScore },
+        });
+        await Booking.updateBooking(booking.bookingId, {
+          riskReminderSentAt: now.toISOString(),
+          paymentRiskScore: risk.riskScore,
+          paymentRiskLevel: risk.riskLevel,
+        });
+      }
+    }
+
     const expiredBookings = await Booking.findExpiredPendingBookings(new Date().toISOString());
 
     for (const booking of expiredBookings) {
@@ -283,7 +326,9 @@ const expirePendingBookings = async (_req, res) => {
     return res.json({
       message: "Expired booking scan completed",
       expiredCount: expiredBookings.length,
+      highRiskCount: highRiskBookings.length,
       bookings: expiredBookings.map((booking) => booking.bookingId),
+      highRiskBookings,
     });
   } catch (error) {
     return res.status(500).json({ message: "Failed to expire pending bookings", error: error.message });

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { bookingApi, getApiError, parkingApi } from "../api/client";
+import { aiApi, bookingApi, getApiError, parkingApi } from "../api/client";
 import { Loader } from "../components/Loader";
 import { SlotCard } from "../components/SlotCard";
 import { useToast } from "../context/ToastContext";
@@ -10,13 +10,20 @@ export const SlotsPage = () => {
   const [loading, setLoading] = useState(true);
   const [bookingSlotId, setBookingSlotId] = useState("");
   const [filter, setFilter] = useState("all");
+  const [recommendation, setRecommendation] = useState(null);
   const { pushToast } = useToast();
   const navigate = useNavigate();
 
   const loadSlots = async () => {
     try {
-      const response = await parkingApi.get("/slots");
-      setSlots(response.data);
+      const slotsResponse = await parkingApi.get("/slots");
+      setSlots(slotsResponse.data);
+      try {
+        const recommendationResponse = await aiApi.get("/recommend-slot");
+        setRecommendation(recommendationResponse.data);
+      } catch (error) {
+        setRecommendation(null);
+      }
     } catch (error) {
       pushToast({ title: "Failed to load slots", description: getApiError(error), tone: "error" });
     } finally {
@@ -79,6 +86,7 @@ export const SlotsPage = () => {
             action={slot.status === "available" ? () => handleBook(slot.slotId) : null}
             actionLabel={bookingSlotId === slot.slotId ? "Creating booking..." : "Book now"}
             disabled={bookingSlotId === slot.slotId}
+            recommendation={recommendation}
           />
         ))}
       </div>

@@ -121,6 +121,19 @@ const findExpiredPendingBookings = async (nowIso) => {
   return response.Items || [];
 };
 
+const findPendingBookings = async () => {
+  const response = await client.send(
+    new ScanCommand({
+      TableName: tableName,
+      FilterExpression: "#status = :status",
+      ExpressionAttributeNames: { "#status": "status" },
+      ExpressionAttributeValues: { ":status": "pending" },
+    })
+  );
+
+  return response.Items || [];
+};
+
 const repairZeroAmounts = async (fallbackAmount) => {
   const bookings = await scanAll();
   for (const booking of bookings) {
@@ -135,6 +148,7 @@ module.exports = {
   createBooking,
   deleteBooking,
   findExpiredPendingBookings,
+  findPendingBookings,
   getBooking,
   listBookings,
   repairZeroAmounts,

@@ -14,9 +14,12 @@ const createClient = (baseURL) => {
   return client;
 };
 
+const bookingBaseUrl = import.meta.env.VITE_BOOKING_SERVICE_URL || "/api/booking";
+
 export const authApi = createClient(import.meta.env.VITE_AUTH_SERVICE_URL || "/api/auth");
 export const parkingApi = createClient(import.meta.env.VITE_PARKING_SERVICE_URL || "/api/parking");
-export const bookingApi = createClient(import.meta.env.VITE_BOOKING_SERVICE_URL || "/api/booking");
+export const bookingApi = createClient(bookingBaseUrl);
+export const aiApi = createClient(import.meta.env.VITE_AI_SERVICE_URL || `${bookingBaseUrl}/ai`);
 export const paymentApi = createClient(import.meta.env.VITE_PAYMENT_SERVICE_URL || "/api/payment");
 export const notificationApi = createClient(import.meta.env.VITE_NOTIFICATION_SERVICE_URL || "/api/notification");
 

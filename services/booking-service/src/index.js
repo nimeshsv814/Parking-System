@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
+const aiRoutes = require("./routes/aiRoutes");
 const bookingRoutes = require("./routes/bookingRoutes");
 
 const app = express();
@@ -10,6 +11,8 @@ app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
 app.use(express.json());
 app.use(morgan("dev"));
 app.use("/", bookingRoutes);
+app.use("/ai", aiRoutes);
+app.use("/api/ai", aiRoutes);
 
 const start = async () => {
   try {

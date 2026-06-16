@@ -19,8 +19,9 @@ const statusStyles = {
   },
 };
 
-export const SlotCard = ({ slot, action, actionLabel, disabled }) => {
+export const SlotCard = ({ slot, action, actionLabel, disabled, recommendation }) => {
   const style = statusStyles[slot.status] || statusStyles.blocked;
+  const isRecommended = recommendation?.recommendedSlotId === slot.slotId;
 
   return (
     <div className="glass-panel flex h-full flex-col justify-between p-5 transition duration-300 hover:-translate-y-1">
@@ -34,6 +35,19 @@ export const SlotCard = ({ slot, action, actionLabel, disabled }) => {
             {slot.status}
           </span>
         </div>
+        {isRecommended && (
+          <div className="mt-4 rounded-2xl border border-mint/40 bg-mint/10 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-green-900">
+                Recommended Slot
+              </span>
+              <span className="text-xs font-semibold text-green-900">
+                {Math.round((recommendation.score || 0) * 100)}%
+              </span>
+            </div>
+            <p className="mt-2 text-sm text-green-950">{recommendation.reason}</p>
+          </div>
+        )}
         <p className="mt-4 text-sm text-slate">{slot.location}</p>
         <div className="mt-5 flex items-center justify-between">
           <div className="flex items-center gap-2">

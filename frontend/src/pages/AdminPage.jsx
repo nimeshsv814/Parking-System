@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { bookingApi, getApiError, parkingApi } from "../api/client";
+import { aiApi, bookingApi, getApiError, parkingApi } from "../api/client";
 import { Loader } from "../components/Loader";
 import { useToast } from "../context/ToastContext";
 import { DEFAULT_BOOKING_AMOUNT, formatRupees, getAffordableAmount } from "../utils/money";
@@ -16,6 +16,7 @@ export const AdminPage = () => {
   const [loading, setLoading] = useState(true);
   const [slots, setSlots] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [demandPrediction, setDemandPrediction] = useState([]);
   const [slotForm, setSlotForm] = useState(emptySlotForm);
   const [submitting, setSubmitting] = useState(false);
   const [updatingSlotId, setUpdatingSlotId] = useState("");
@@ -23,12 +24,14 @@ export const AdminPage = () => {
 
   const loadAdminData = async () => {
     try {
-      const [slotsResponse, bookingsResponse] = await Promise.all([
+      const [slotsResponse, bookingsResponse, demandResponse] = await Promise.all([
         parkingApi.get("/slots"),
         bookingApi.get("/bookings"),
+        aiApi.get("/demand-prediction?hours=8").catch(() => ({ data: [] })),
       ]);
       setSlots(slotsResponse.data);
       setBookings(bookingsResponse.data);
+      setDemandPrediction(demandResponse.data);
     } catch (error) {
       pushToast({ title: "Failed to load admin data", description: getApiError(error), tone: "error" });
     } finally {
@@ -139,6 +142,33 @@ export const AdminPage = () => {
           </div>
         </section>
       </div>
+
+      <section className="glass-panel p-6">
+        <h2 className="section-title">AI demand prediction</h2>
+        <p className="muted-copy">Expected parking load for upcoming hours using booking history.</p>
+        <div className="mt-5 overflow-x-auto">
+          <table className="min-w-full text-left text-sm">
+            <thead>
+              <tr className="text-slate">
+                <th className="pb-3 pr-4 font-medium">Time</th>
+                <th className="pb-3 pr-4 font-medium">Predicted booked</th>
+                <th className="pb-3 pr-4 font-medium">Predicted available</th>
+                <th className="pb-3 pr-4 font-medium">Demand level</th>
+              </tr>
+            </thead>
+            <tbody>
+              {demandPrediction.map((item) => (
+                <tr key={item.time} className="border-t border-ink/5">
+                  <td className="py-3 pr-4 font-medium">{item.time}</td>
+                  <td className="py-3 pr-4">{item.predictedBookedSlots}</td>
+                  <td className="py-3 pr-4">{item.predictedAvailableSlots}</td>
+                  <td className="py-3 pr-4 font-semibold">{item.demandLevel}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <section className="glass-panel p-6">
         <h2 className="section-title">All bookings</h2>

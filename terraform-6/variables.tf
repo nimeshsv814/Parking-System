@@ -359,7 +359,7 @@ variable "create_app_config_secret" {
 variable "app_config_secret_name" {
   type        = string
   description = "Name of the Secrets Manager secret Terraform creates for app runtime secrets"
-  default     = "quickslot-01"
+  default     = "quickslot-02"
 }
 
 variable "app_config_secret_recovery_window_in_days" {

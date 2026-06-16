@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { bookingApi, getApiError, notificationApi, parkingApi } from "../api/client";
+import { aiApi, bookingApi, getApiError, notificationApi, parkingApi } from "../api/client";
 import { Loader } from "../components/Loader";
 import { SlotCard } from "../components/SlotCard";
 import { StatCard } from "../components/StatCard";
@@ -9,20 +9,23 @@ export const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [slots, setSlots] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [demandPrediction, setDemandPrediction] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const { pushToast } = useToast();
 
   useEffect(() => {
     const loadDashboard = async () => {
       try {
-        const [slotsResponse, bookingsResponse, notificationsResponse] = await Promise.all([
+        const [slotsResponse, bookingsResponse, notificationsResponse, demandResponse] = await Promise.all([
           parkingApi.get("/slots"),
           bookingApi.get("/bookings"),
           notificationApi.get("/notifications"),
+          aiApi.get("/demand-prediction?hours=4").catch(() => ({ data: [] })),
         ]);
         setSlots(slotsResponse.data);
         setBookings(bookingsResponse.data);
         setNotifications(notificationsResponse.data.slice(0, 4));
+        setDemandPrediction(demandResponse.data);
       } catch (error) {
         pushToast({ title: "Failed to load dashboard", description: getApiError(error), tone: "error" });
       } finally {
@@ -39,6 +42,7 @@ export const DashboardPage = () => {
 
   const availableSlots = slots.filter((slot) => slot.status === "available").length;
   const activeBookings = bookings.filter((booking) => ["pending", "confirmed"].includes(booking.status)).length;
+  const currentDemand = demandPrediction[0]?.demandLevel || "LOW";
 
   return (
     <div className="space-y-6">
@@ -52,6 +56,7 @@ export const DashboardPage = () => {
           accent="bg-ember"
           hint="Latest booking and payment updates"
         />
+        <StatCard label="Demand level" value={currentDemand} accent="bg-slate" hint="AI forecast for the next hour" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
@@ -89,6 +94,33 @@ export const DashboardPage = () => {
           </div>
         </section>
       </div>
+
+      <section className="glass-panel p-6">
+        <h2 className="section-title">Demand prediction</h2>
+        <p className="muted-copy">AI forecast based on historical hourly booking averages.</p>
+        <div className="mt-5 overflow-x-auto">
+          <table className="min-w-full text-left text-sm">
+            <thead>
+              <tr className="text-slate">
+                <th className="pb-3 pr-4 font-medium">Time</th>
+                <th className="pb-3 pr-4 font-medium">Booked</th>
+                <th className="pb-3 pr-4 font-medium">Available</th>
+                <th className="pb-3 pr-4 font-medium">Demand</th>
+              </tr>
+            </thead>
+            <tbody>
+              {demandPrediction.map((item) => (
+                <tr key={item.time} className="border-t border-ink/5">
+                  <td className="py-3 pr-4 font-medium">{item.time}</td>
+                  <td className="py-3 pr-4">{item.predictedBookedSlots}</td>
+                  <td className="py-3 pr-4">{item.predictedAvailableSlots}</td>
+                  <td className="py-3 pr-4 font-semibold">{item.demandLevel}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 };

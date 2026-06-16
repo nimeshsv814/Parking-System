@@ -2,6 +2,7 @@ const express = require("express");
 const {
   createSlot,
   getSlotInternal,
+  listSlotsInternal,
   listAvailableSlots,
   listSlots,
   occupySlotInternal,
@@ -19,6 +20,7 @@ router.get("/slots/available", authenticate, listAvailableSlots);
 router.post("/slots", authenticate, authorize("admin"), createSlot);
 router.patch("/slots/:slotId/status", authenticate, authorize("admin"), updateSlotStatus);
 
+router.get("/internal/slots", requireInternalKey, listSlotsInternal);
 router.get("/internal/slots/:slotId", requireInternalKey, getSlotInternal);
 router.post("/internal/slots/:slotId/reserve", requireInternalKey, reserveSlotInternal);
 router.post("/internal/slots/:slotId/release", requireInternalKey, releaseSlotInternal);

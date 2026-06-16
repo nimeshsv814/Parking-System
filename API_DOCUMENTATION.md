@@ -162,6 +162,51 @@ Response:
 ### `GET /notifications`
 User sees their notifications. Admin sees all notifications.
 
+## AI Endpoints (`http://localhost:4003`)
+
+These endpoints use local statistical scoring only. They do not require CCTV, sensors, number plate recognition, or paid AI APIs.
+Routes are mounted as `/ai/...` and `/api/ai/...` inside the booking service.
+
+### `GET /ai/recommend-slot`
+Returns the best currently available slot for the signed-in user. Optional query: `durationHours`.
+
+Sample response:
+```json
+{
+  "recommendedSlotId": "B-201",
+  "reason": "Slot B-201 is available, less demanded historically, suitable for your booking duration.",
+  "score": 0.87
+}
+```
+
+### `GET /ai/demand-prediction`
+Predicts demand for upcoming hours from historical hourly booking averages. Optional query: `hours`.
+
+Sample response:
+```json
+[
+  {
+    "time": "10:00",
+    "predictedBookedSlots": 40,
+    "predictedAvailableSlots": 20,
+    "demandLevel": "HIGH"
+  }
+]
+```
+
+### `GET /ai/payment-risk/:bookingId`
+Predicts pending-payment expiry risk for one booking.
+
+Sample response:
+```json
+{
+  "bookingId": "BKG-123456",
+  "riskLevel": "HIGH",
+  "riskScore": 0.91,
+  "action": "SEND_PAYMENT_REMINDER"
+}
+```
+
 ## Seed Users
 
 - Admin: `admin@parking.com` / `Admin@123`
