@@ -164,7 +164,7 @@ User sees their notifications. Admin sees all notifications.
 
 ## AI Endpoints (`http://localhost:4003`)
 
-These endpoints use local statistical scoring only. They do not require CCTV, sensors, number plate recognition, or paid AI APIs.
+These endpoints use Gemini API when `GEMINI_API_KEY` is configured. If Gemini is not configured or fails, the service falls back to local statistical scoring. They do not require CCTV, sensors, or number plate recognition.
 Routes are mounted as `/ai/...` and `/api/ai/...` inside the booking service.
 
 ### `GET /ai/recommend-slot`
@@ -175,7 +175,8 @@ Sample response:
 {
   "recommendedSlotId": "B-201",
   "reason": "Slot B-201 is available, less demanded historically, suitable for your booking duration.",
-  "score": 0.87
+  "score": 0.87,
+  "aiProvider": "GEMINI"
 }
 ```
 
@@ -189,7 +190,8 @@ Sample response:
     "time": "10:00",
     "predictedBookedSlots": 40,
     "predictedAvailableSlots": 20,
-    "demandLevel": "HIGH"
+    "demandLevel": "HIGH",
+    "aiProvider": "GEMINI"
   }
 ]
 ```
@@ -203,8 +205,16 @@ Sample response:
   "bookingId": "BKG-123456",
   "riskLevel": "HIGH",
   "riskScore": 0.91,
-  "action": "SEND_PAYMENT_REMINDER"
+  "action": "SEND_PAYMENT_REMINDER",
+  "aiProvider": "GEMINI"
 }
+```
+
+Required environment variables for Gemini:
+
+```env
+GEMINI_API_KEY=your-google-ai-studio-api-key
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
 ## Seed Users

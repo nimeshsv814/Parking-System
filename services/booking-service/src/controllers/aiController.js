@@ -1,8 +1,10 @@
 const Booking = require("../models/Booking");
 const { internalHeaders, parkingClient } = require("../config/http");
-const { recommendSlot } = require("../services/aiRecommendationService");
-const { predictDemand } = require("../services/demandPredictionService");
-const { predictPaymentRisk } = require("../services/paymentRiskService");
+const {
+  getGeminiDemandPrediction,
+  getGeminiPaymentRisk,
+  getGeminiSlotRecommendation,
+} = require("../services/geminiAiService");
 
 const getSlots = async () => {
   const response = await parkingClient.get("/internal/slots", { headers: internalHeaders() });
@@ -12,7 +14,7 @@ const getSlots = async () => {
 const getRecommendation = async (req, res) => {
   try {
     const [slots, bookings] = await Promise.all([getSlots(), Booking.listBookings({ isAdmin: true })]);
-    const recommendation = recommendSlot({
+    const recommendation = await getGeminiSlotRecommendation({
       slots,
       bookings,
       userId: req.user.id,
@@ -28,9 +30,9 @@ const getRecommendation = async (req, res) => {
 const getDemandPrediction = async (req, res) => {
   try {
     const [slots, bookings] = await Promise.all([getSlots(), Booking.listBookings({ isAdmin: true })]);
-    const predictions = predictDemand({
+    const predictions = await getGeminiDemandPrediction({
+      slots,
       bookings,
-      totalSlots: slots.length,
       hours: Number(req.query.hours || 6),
     });
 
@@ -52,7 +54,7 @@ const getPaymentRisk = async (req, res) => {
 
     const bookings = await Booking.listBookings({ isAdmin: true });
     return res.json(
-      predictPaymentRisk({
+      await getGeminiPaymentRisk({
         booking,
         bookings,
         holdMinutes: Number(process.env.BOOKING_HOLD_MINUTES || 10),

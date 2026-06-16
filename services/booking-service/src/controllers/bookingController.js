@@ -1,6 +1,6 @@
 const Booking = require("../models/Booking");
 const { internalHeaders, notificationClient, parkingClient } = require("../config/http");
-const { predictPaymentRisk } = require("../services/paymentRiskService");
+const { getGeminiPaymentRisk } = require("../services/geminiAiService");
 
 const buildBookingId = () => `BKG-${Date.now()}${Math.floor(Math.random() * 1000)}`;
 const DEFAULT_BOOKING_AMOUNT = 50;
@@ -275,10 +275,9 @@ const expirePendingBookings = async (_req, res) => {
         continue;
       }
 
-      const risk = predictPaymentRisk({
+      const risk = await getGeminiPaymentRisk({
         booking,
         bookings: allBookings,
-        now,
         holdMinutes: Number(process.env.BOOKING_HOLD_MINUTES || 10),
       });
       const remainingMs = new Date(booking.expiresAt).getTime() - now.getTime();
