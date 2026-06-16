@@ -138,6 +138,14 @@ output "observability" {
   }
 }
 
+output "vpc_endpoints" {
+  description = "VPC endpoints used by private app/data tiers for AWS service access"
+  value = {
+    interface_endpoints = { for service, endpoint in aws_vpc_endpoint.ssm : service => endpoint.id }
+    gateway_endpoints   = { for service, endpoint in aws_vpc_endpoint.gateway : service => endpoint.id }
+  }
+}
+
 output "booking_confirmed_sns_topic_arn" {
   description = "SNS topic ARN for booking confirmation user notifications"
   value       = try(module.booking_sns_notifications[0].booking_confirmed_topic_arn, null)

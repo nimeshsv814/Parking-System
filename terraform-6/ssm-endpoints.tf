@@ -1,14 +1,24 @@
 locals {
-  ssm_endpoint_services = toset([
+  gateway_endpoint_services = toset([
+    "s3",
+    "dynamodb"
+  ])
+
+  interface_endpoint_services = toset([
     "ssm",
     "ssmmessages",
-    "ec2messages"
+    "ec2messages",
+    "secretsmanager",
+    "sqs",
+    "sns",
+    "kms",
+    "logs"
   ])
 }
 
 resource "aws_security_group" "ssm_vpc_endpoints" {
   name        = "quickslot-ssm-vpc-endpoints-sg"
-  description = "Allow app and web EC2 instances to reach SSM interface endpoints"
+  description = "Allow app and web EC2 instances to reach AWS interface endpoints"
   vpc_id      = module.network.vpc_id
 
   ingress {
@@ -45,7 +55,7 @@ resource "aws_security_group" "ssm_vpc_endpoints" {
 }
 
 resource "aws_vpc_endpoint" "ssm" {
-  for_each = local.ssm_endpoint_services
+  for_each = local.interface_endpoint_services
 
   vpc_id              = module.network.vpc_id
   service_name        = "com.amazonaws.${var.aws_region}.${each.key}"
@@ -58,6 +68,23 @@ resource "aws_vpc_endpoint" "ssm" {
 
   tags = {
     Name        = "quickslot-${each.key}-endpoint"
+    Application = "smart-parking"
+  }
+}
+
+resource "aws_vpc_endpoint" "gateway" {
+  for_each = local.gateway_endpoint_services
+
+  vpc_id            = module.network.vpc_id
+  service_name      = "com.amazonaws.${var.aws_region}.${each.key}"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids = [
+    module.network.app_private_route_table_id,
+    module.network.db_private_route_table_id
+  ]
+
+  tags = {
+    Name        = "quickslot-${each.key}-gateway-endpoint"
     Application = "smart-parking"
   }
 }

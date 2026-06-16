@@ -299,6 +299,34 @@ ec2messages
 
 If instances do not appear immediately, wait a few minutes after the new EC2 instances boot, then check Systems Manager Fleet Manager or Managed Nodes.
 
+## VPC Endpoints
+
+`terraform-6` creates VPC endpoints so private app/data tier traffic can reach AWS services without relying on public service endpoints.
+
+Gateway endpoints:
+
+```text
+s3
+dynamodb
+```
+
+These are attached to the app and DB private route tables. They support payment invoice uploads to S3 and application access to DynamoDB tables.
+
+Interface endpoints:
+
+```text
+ssm
+ssmmessages
+ec2messages
+secretsmanager
+sqs
+sns
+kms
+logs
+```
+
+These support Session Manager, app config retrieval from Secrets Manager, SQS/SNS notifications, KMS-encrypted invoice uploads, and CloudWatch container logs. The endpoint security group allows HTTPS from the app and web security groups.
+
 ## Edge Stack: Route53, CloudFront, WAF, Manual ACM
 
 This folder can create:
