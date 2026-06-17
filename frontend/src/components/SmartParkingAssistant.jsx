@@ -23,7 +23,7 @@ export const SmartParkingAssistant = () => {
   const [loading, setLoading] = useState(false);
   const [booking, setBooking] = useState(false);
 
-  const shouldAutoOpen = user?.role !== "admin" && !location.pathname.startsWith("/payment");
+  const shouldAutoOpen = Boolean(user) && !location.pathname.startsWith("/payment");
 
   useEffect(() => {
     if (!shouldAutoOpen) {
@@ -102,10 +102,6 @@ export const SmartParkingAssistant = () => {
       setBooking(false);
     }
   };
-
-  if (user?.role === "admin") {
-    return null;
-  }
 
   return (
     <>
