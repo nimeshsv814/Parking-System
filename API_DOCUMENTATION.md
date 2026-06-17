@@ -1,4 +1,4 @@
-# Smart Parking System API
+# Quickslot API
 
 ## Auth Service (`http://localhost:4001`)
 

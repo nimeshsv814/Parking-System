@@ -20,7 +20,7 @@ export const AppLayout = () => {
       <header className="page-shell pt-5">
         <div className="glass-panel flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-slate">Smart Parking System</p>
+            <p className="text-xs uppercase tracking-[0.3em] text-slate">Quickslot</p>
             <h1 className="font-serif text-3xl italic text-ink">Park smarter, manage faster.</h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">

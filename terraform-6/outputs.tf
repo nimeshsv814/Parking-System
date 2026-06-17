@@ -69,7 +69,7 @@ output "app_config_secret_name" {
 }
 
 output "dynamodb_tables" {
-  description = "DynamoDB tables created for each Smart Parking microservice"
+  description = "DynamoDB tables created for each Quickslot microservice"
   value = {
     auth_users = {
       name      = aws_dynamodb_table.auth_users.name

@@ -207,7 +207,7 @@ const getAssistantChatResponse = async ({ message, slots, bookings, userId }) =>
     const result = await generateJson({
       schema: assistantChatSchema,
       temperature: 0.25,
-      prompt: `You are QuickSlot AI, an LLM parking assistant inside a Smart Parking System.
+      prompt: `You are Quickslot AI, an LLM parking assistant inside Quickslot smart parking.
 This is a RAG-style task: use only the retrieved live application context below, not generic assumptions.
 Understand the user's natural language request, infer vehicle type and duration when possible, compare available slots, historical booking pressure, current demand, price, and location.
 Recommend one currently available slot if possible. If details are missing, still make a reasonable recommendation using defaults.

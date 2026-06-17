@@ -9,7 +9,7 @@ resource "aws_sns_topic" "asg_notifications" {
   count = var.enable_asg_email_notifications ? 1 : 0
 
   name         = var.asg_notification_topic_name
-  display_name = "Smart Parking ASG EC2 Notifications"
+  display_name = "Quickslot ASG EC2 Notifications"
 
   tags = {
     Name = var.asg_notification_topic_name

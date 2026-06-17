@@ -48,7 +48,7 @@ module "app_config_secret" {
   source = "./modules/secrets_manager"
 
   create_initial_secret_version = var.create_app_config_initial_secret_version && !var.manage_app_config_secret_value
-  description                   = "Runtime secrets for Smart Parking application services"
+  description                   = "Runtime secrets for Quickslot application services"
   initial_secret_json           = var.app_config_initial_secret_json
   name                          = var.app_config_secret_name
   recovery_window_in_days       = var.app_config_secret_recovery_window_in_days

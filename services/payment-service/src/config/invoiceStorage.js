@@ -28,9 +28,9 @@ const buildInvoicePdf = ({ invoice, payment, booking }) =>
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    doc.font("Helvetica-Bold").fontSize(22).text("QuickSlot Payment Invoice");
+    doc.font("Helvetica-Bold").fontSize(22).text("Quickslot Payment Invoice");
     doc.moveDown(0.5);
-    doc.font("Helvetica").fontSize(10).text("Smart Parking System");
+    doc.font("Helvetica").fontSize(10).text("Quickslot");
     doc.moveDown(1.5);
 
     doc.fontSize(12);
@@ -62,7 +62,7 @@ const buildInvoicePdf = ({ invoice, payment, booking }) =>
     addDetail(doc, "Paid At", booking.paidAt);
 
     doc.moveDown(2);
-    doc.font("Helvetica").fontSize(10).text("This invoice was generated automatically by QuickSlot.", {
+    doc.font("Helvetica").fontSize(10).text("This invoice was generated automatically by Quickslot.", {
       align: "center",
     });
 

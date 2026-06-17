@@ -137,7 +137,7 @@ variable "asg_notification_topic_name" {
 
 variable "frontend_image" {
   type    = string
-  default = "docker.io/nimeshsv814/tf-frontend:v6.0.3"
+  default = "docker.io/nimeshsv814/tf-frontend:v6.0.5"
 }
 
 variable "auth_service_image" {
@@ -152,7 +152,7 @@ variable "parking_service_image" {
 
 variable "booking_service_image" {
   type    = string
-  default = "docker.io/nimeshsv814/tf-booking-service:v6.0.2"
+  default = "docker.io/nimeshsv814/tf-booking-service:v6.0.5"
 }
 
 variable "payment_service_image" {
@@ -202,13 +202,13 @@ variable "notification_table" {
 
 variable "enable_dynamodb_point_in_time_recovery" {
   type        = bool
-  description = "Enable point-in-time recovery for all Smart Parking DynamoDB tables"
+  description = "Enable point-in-time recovery for all Quickslot DynamoDB tables"
   default     = true
 }
 
 variable "enable_dynamodb_deletion_protection" {
   type        = bool
-  description = "Enable deletion protection for all Smart Parking DynamoDB tables"
+  description = "Enable deletion protection for all Quickslot DynamoDB tables"
   default     = true
 }
 

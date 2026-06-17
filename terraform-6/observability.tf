@@ -30,7 +30,7 @@ resource "aws_cloudwatch_log_group" "app_services" {
 
 resource "aws_sns_topic" "observability_alerts" {
   name         = "quickslot-observability-alerts"
-  display_name = "QuickSlot Observability Alerts"
+  display_name = "Quickslot Observability Alerts"
 
   tags = {
     Name        = "quickslot-observability-alerts"
@@ -216,6 +216,6 @@ resource "aws_cloudwatch_event_target" "payment_invoice_pdf_sns" {
       time   = "$.time"
     }
 
-    input_template = "\"QuickSlot payment invoice PDF created at <time>: s3://<bucket>/<key>\""
+    input_template = "\"Quickslot payment invoice PDF created at <time>: s3://<bucket>/<key>\""
   }
 }

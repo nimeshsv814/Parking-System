@@ -56,7 +56,7 @@ export const PaymentPage = () => {
         key: keyId,
         amount: order.amount,
         currency: order.currency,
-        name: "Smart Parking",
+        name: "Quickslot",
         description: `Booking ${bookingId}`,
         order_id: order.id,
         prefill: {

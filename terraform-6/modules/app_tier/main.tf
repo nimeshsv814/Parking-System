@@ -557,7 +557,7 @@ systemctl restart nginx
 
 sleep 10
 {
-  echo "Smart Parking app-tier deployment status"
+  echo "Quickslot app-tier deployment status"
   date -Is
   echo
   docker ps --filter "network=$APP_NETWORK"

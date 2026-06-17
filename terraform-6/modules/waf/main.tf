@@ -1,6 +1,6 @@
 resource "aws_wafv2_web_acl" "this" {
   name        = var.name
-  description = "WAF for Smart Parking CloudFront distribution"
+  description = "WAF for Quickslot CloudFront distribution"
   scope       = "CLOUDFRONT"
 
   default_action {

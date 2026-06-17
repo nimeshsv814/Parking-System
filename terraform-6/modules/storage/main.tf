@@ -14,7 +14,7 @@ locals {
 }
 
 resource "aws_kms_key" "payment_invoices" {
-  description             = "KMS key for Smart Parking payment invoice objects"
+  description             = "KMS key for Quickslot payment invoice objects"
   deletion_window_in_days = var.kms_key_deletion_window_in_days
   enable_key_rotation     = true
 

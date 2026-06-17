@@ -87,7 +87,7 @@ const getGeminiSlotRecommendation = async ({ slots, bookings, userId, durationHo
   return withFallback(fallback, async () =>
     generateJson({
       schema: recommendationSchema,
-      prompt: `You are the AI decision engine for a Smart Parking System.
+      prompt: `You are the AI decision engine for Quickslot, a smart parking system.
 Recommend exactly one best available slot for the user.
 Use only available slots. Consider location, floor/zone convenience, current status, historical booking frequency, peak-hour demand, requested duration, price, and pending payment risk.
 Return only JSON matching this schema:
@@ -121,7 +121,7 @@ const getGeminiDemandPrediction = async ({ slots, bookings, hours }) => {
   return withFallback({ predictions: fallback }, async () => {
     const result = await generateJson({
       schema: demandSchema,
-      prompt: `You are the AI demand prediction engine for a Smart Parking System.
+      prompt: `You are the AI demand prediction engine for Quickslot, a smart parking system.
 Predict parking demand for the next ${hours} hours.
 Use historical booking times, current active bookings, total slot count, peak/off-peak patterns, and unavailable slots.
 Return only a JSON array. Demand level must be LOW, MEDIUM, or HIGH.
@@ -151,7 +151,7 @@ const getGeminiPaymentRisk = async ({ booking, bookings, holdMinutes }) => {
   return withFallback(fallback, async () =>
     generateJson({
       schema: paymentRiskSchema,
-      prompt: `You are the AI payment-risk engine for a Smart Parking System.
+      prompt: `You are the AI payment-risk engine for Quickslot, a smart parking system.
 Predict whether this pending booking is likely to expire before payment.
 Consider time since booking was created, remaining time before expiry, user's previous payment success/failure history, booking amount, and peak-hour pressure.
 Return only JSON matching this schema:
