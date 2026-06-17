@@ -40,9 +40,9 @@ resource "aws_launch_template" "web" {
     security_groups             = [var.web_security_group_id]
   }
 
-  user_data = base64encode(<<-EOF
+  user_data = base64encode(replace(<<-EOF
 #!/bin/bash
-set -euxo pipefail
+set -euo pipefail
 
 FRONTEND_IMAGE="${var.frontend_image}"
 
@@ -125,6 +125,26 @@ server {
 
     location /api/booking/ {
         rewrite ^/api/booking/(.*)$ /booking/$1 break;
+        proxy_pass http://${var.internal_alb_dns_name};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /ai/ {
+        rewrite ^/ai/(.*)$ /booking/ai/$1 break;
+        proxy_pass http://${var.internal_alb_dns_name};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /api/ai/ {
+        rewrite ^/api/ai/(.*)$ /booking/api/ai/$1 break;
         proxy_pass http://${var.internal_alb_dns_name};
         proxy_http_version 1.1;
         proxy_set_header Host $host;
@@ -223,7 +243,7 @@ docker run -d \
   "$FRONTEND_IMAGE"
 
 EOF
-  )
+  , "\r\n", "\n"))
 
   tag_specifications {
     resource_type = "instance"

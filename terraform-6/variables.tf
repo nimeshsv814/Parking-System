@@ -152,7 +152,7 @@ variable "parking_service_image" {
 
 variable "booking_service_image" {
   type    = string
-  default = "docker.io/nimeshsv814/tf-booking-service:v5.0.0"
+  default = "docker.io/nimeshsv814/tf-booking-service:v5.0.1"
 }
 
 variable "payment_service_image" {
@@ -359,7 +359,7 @@ variable "create_app_config_secret" {
 variable "app_config_secret_name" {
   type        = string
   description = "Name of the Secrets Manager secret Terraform creates for app runtime secrets"
-  default     = "quickslot-02"
+  default     = "quickslot-03"
 }
 
 variable "app_config_secret_recovery_window_in_days" {
@@ -399,7 +399,7 @@ variable "app_config_secret_values" {
     RAZORPAY_KEY_SECRET = string
     RAZORPAY_CURRENCY   = string
     GEMINI_API_KEY      = optional(string, "")
-    GEMINI_MODEL        = optional(string, "gemini-3.5-flash")
+    GEMINI_MODEL        = optional(string, "gemini-2.5-flash")
   })
   description = "JSON values written to the app config Secrets Manager secret when manage_app_config_secret_value is true."
   sensitive   = true
@@ -414,7 +414,7 @@ variable "app_config_secret_values" {
     RAZORPAY_KEY_SECRET = "1I4sLVIvCMWSTUlM5lCZm71j"
     RAZORPAY_CURRENCY   = "INR"
     GEMINI_API_KEY      = ""
-    GEMINI_MODEL        = "gemini-3.5-flash"
+    GEMINI_MODEL        = "gemini-2.5-flash"
   }
 }
 

@@ -153,9 +153,9 @@ resource "aws_launch_template" "app" {
     security_groups             = [var.app_security_group_id]
   }
 
-  user_data = base64encode(<<-EOF
+  user_data = base64encode(replace(<<-EOF
 #!/bin/bash
-set -euxo pipefail
+set -euo pipefail
 
 AUTH_SERVICE_IMAGE="${var.auth_service_image}"
 PARKING_SERVICE_IMAGE="${var.parking_service_image}"
@@ -223,7 +223,7 @@ RAZORPAY_KEY_ID_VALUE="$(secret_value RAZORPAY_KEY_ID rzp_test_ShFFMxa9JkqmZu)"
 RAZORPAY_KEY_SECRET_VALUE="$(secret_value RAZORPAY_KEY_SECRET 1I4sLVIvCMWSTUlM5lCZm71j)"
 RAZORPAY_CURRENCY_VALUE="$(secret_value RAZORPAY_CURRENCY INR)"
 GEMINI_API_KEY_VALUE="$(secret_value GEMINI_API_KEY '')"
-GEMINI_MODEL_VALUE="$(secret_value GEMINI_MODEL gemini-3.5-flash)"
+GEMINI_MODEL_VALUE="$(secret_value GEMINI_MODEL gemini-2.5-flash)"
 
 cat <<EOT > "$ENV_DIR/auth-service.env"
 PORT=4001
@@ -422,6 +422,24 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    location /ai/ {
+        proxy_pass http://127.0.0.1:4003/ai/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /api/ai/ {
+        proxy_pass http://127.0.0.1:4003/api/ai/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     location = /payment/create-order {
         rewrite ^ /payments/razorpay/order break;
         proxy_pass http://127.0.0.1:4004;
@@ -565,7 +583,7 @@ sleep 10
 } > /opt/smart-parking-deploy-status.txt
 
 EOF
-  )
+  , "\r\n", "\n"))
 
   tag_specifications {
     resource_type = "instance"
