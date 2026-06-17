@@ -18,7 +18,7 @@ export const SlotsPage = () => {
   const [filter, setFilter] = useState("all");
   const [recommendation, setRecommendation] = useState(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
-  const [bookingForm, setBookingForm] = useState({ vehicleType: "four-wheeler", durationHours: 1 });
+  const [bookingPreferences, setBookingPreferences] = useState({ vehicleType: "four-wheeler", durationHours: 1 });
   const { pushToast } = useToast();
   const navigate = useNavigate();
 
@@ -50,10 +50,10 @@ export const SlotsPage = () => {
 
     try {
       setBookingSlotId(selectedSlot.slotId);
-      const durationHours = Math.min(24, Math.max(1, Number(bookingForm.durationHours) || 1));
+      const durationHours = Math.min(24, Math.max(1, Number(bookingPreferences.durationHours) || 1));
       const response = await bookingApi.post("/bookings", {
         slotId: selectedSlot.slotId,
-        vehicleType: bookingForm.vehicleType,
+        vehicleType: bookingPreferences.vehicleType,
         durationHours,
       });
       pushToast({
@@ -96,6 +96,49 @@ export const SlotsPage = () => {
         </div>
       </div>
 
+      <div className="glass-panel p-6">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.24em] text-slate">Booking preferences</p>
+            <h3 className="mt-1 text-2xl font-semibold">Choose vehicle and parking hours</h3>
+            <p className="mt-2 text-sm text-slate">
+              These preferences will be used for manual booking, AI recommendation, and payment amount.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_160px] xl:min-w-[640px]">
+            {vehicleOptions.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={
+                  bookingPreferences.vehicleType === item.id ? "button-primary w-full" : "button-secondary w-full"
+                }
+                onClick={() => setBookingPreferences((current) => ({ ...current, vehicleType: item.id }))}
+              >
+                {item.label}
+              </button>
+            ))}
+            <label className="block">
+              <span className="sr-only">Parking hours</span>
+              <div className="flex h-full items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                <input
+                  className="w-full bg-transparent text-sm outline-none"
+                  type="number"
+                  min="1"
+                  max="24"
+                  value={bookingPreferences.durationHours}
+                  onChange={(event) =>
+                    setBookingPreferences((current) => ({ ...current, durationHours: event.target.value }))
+                  }
+                  aria-label="Parking duration in hours"
+                />
+                <span className="text-sm font-semibold text-slate">hrs</span>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {filteredSlots.map((slot) => (
           <SlotCard
@@ -105,13 +148,13 @@ export const SlotsPage = () => {
               slot.status === "available"
                 ? () => {
                     setSelectedSlot(slot);
-                    setBookingForm({ vehicleType: "four-wheeler", durationHours: 1 });
                   }
                 : null
             }
             actionLabel={bookingSlotId === slot.slotId ? "Creating booking..." : "Book now"}
             disabled={bookingSlotId === slot.slotId}
             recommendation={recommendation}
+            bookingPreferences={bookingPreferences}
           />
         ))}
       </div>
@@ -121,7 +164,7 @@ export const SlotsPage = () => {
           <div className="glass-panel w-full max-w-xl p-5 sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-slate">Booking details</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate">Confirm booking</p>
                 <h3 className="mt-1 text-2xl font-semibold">Slot {selectedSlot.slotId}</h3>
                 <p className="mt-2 text-sm text-slate">{selectedSlot.location}</p>
               </div>
@@ -131,46 +174,18 @@ export const SlotsPage = () => {
             </div>
 
             <div className="mt-6 space-y-5">
-              <section>
-                <p className="text-sm font-semibold text-ink">Vehicle type</p>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  {vehicleOptions.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      className={bookingForm.vehicleType === item.id ? "button-primary w-full" : "button-secondary w-full"}
-                      onClick={() => setBookingForm((current) => ({ ...current, vehicleType: item.id }))}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              </section>
-
-              <section>
-                <label className="text-sm font-semibold text-ink" htmlFor="durationHours">
-                  Parking duration
-                </label>
-                <div className="mt-3 flex items-center gap-3">
-                  <input
-                    id="durationHours"
-                    className="input-shell"
-                    type="number"
-                    min="1"
-                    max="24"
-                    value={bookingForm.durationHours}
-                    onChange={(event) =>
-                      setBookingForm((current) => ({ ...current, durationHours: event.target.value }))
-                    }
-                  />
-                  <span className="whitespace-nowrap text-sm font-semibold text-slate">hours</span>
-                </div>
-              </section>
+              <div className="rounded-2xl border border-ink/10 bg-white/70 p-4">
+                <p className="text-sm text-slate">Selected vehicle and duration</p>
+                <p className="mt-1 text-lg font-semibold capitalize">
+                  {bookingPreferences.vehicleType.replace("-", " ")} -{" "}
+                  {Math.min(24, Math.max(1, Number(bookingPreferences.durationHours) || 1))} hour(s)
+                </p>
+              </div>
 
               <div className="rounded-2xl border border-ink/10 bg-white/70 p-4">
                 <p className="text-sm text-slate">Estimated amount</p>
                 <p className="mt-1 text-2xl font-semibold">
-                  {formatRupees((Number(selectedSlot.price) || 0) * (Number(bookingForm.durationHours) || 1))}
+                  {formatRupees((Number(selectedSlot.price) || 0) * (Number(bookingPreferences.durationHours) || 1))}
                 </p>
               </div>
 

@@ -19,9 +19,11 @@ const statusStyles = {
   },
 };
 
-export const SlotCard = ({ slot, action, actionLabel, disabled, recommendation }) => {
+export const SlotCard = ({ slot, action, actionLabel, disabled, recommendation, bookingPreferences }) => {
   const style = statusStyles[slot.status] || statusStyles.blocked;
   const isRecommended = recommendation?.recommendedSlotId === slot.slotId;
+  const durationHours = Number(bookingPreferences?.durationHours) || 1;
+  const estimatedAmount = (Number(slot.price) || 0) * durationHours;
 
   return (
     <div className="glass-panel flex h-full flex-col justify-between p-5 transition duration-300 hover:-translate-y-1">
@@ -56,6 +58,15 @@ export const SlotCard = ({ slot, action, actionLabel, disabled, recommendation }
           </div>
           <p className="text-lg font-semibold">{formatRupees(slot.price)}</p>
         </div>
+        {bookingPreferences && slot.status === "available" && (
+          <div className="mt-4 rounded-2xl border border-ink/10 bg-white/70 p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate">Your booking preference</p>
+            <p className="mt-2 text-sm font-semibold capitalize text-ink">
+              {bookingPreferences.vehicleType.replace("-", " ")} - {durationHours} hour(s)
+            </p>
+            <p className="mt-1 text-sm text-slate">Estimated total: {formatRupees(estimatedAmount)}</p>
+          </div>
+        )}
       </div>
 
       {action && (
