@@ -137,7 +137,7 @@ variable "asg_notification_topic_name" {
 
 variable "frontend_image" {
   type    = string
-  default = "docker.io/nimeshsv814/tf-frontend:v6.0.2"
+  default = "docker.io/nimeshsv814/tf-frontend:v6.0.3"
 }
 
 variable "auth_service_image" {
