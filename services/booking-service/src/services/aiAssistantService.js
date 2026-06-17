@@ -117,6 +117,7 @@ const assistantChatSchema = {
     preferredLocation: { type: "STRING" },
     recommendedSlotId: { type: "STRING" },
     reason: { type: "STRING" },
+    refusalReason: { type: "STRING" },
     confidence: { type: "NUMBER" },
     nextAction: { type: "STRING" },
   },
@@ -229,10 +230,14 @@ const getAssistantChatResponse = async ({ message, slots, bookings, userId }) =>
       prompt: `You are Quickslot AI, an LLM parking assistant inside Quickslot smart parking.
 This is a RAG-style task: use only the retrieved live application context below, not generic assumptions.
 Understand the user's natural language request, infer vehicle type and duration when possible, compare available slots, historical booking pressure, current demand, price, and location.
-Recommend one currently available slot if possible. If details are missing, still make a reasonable recommendation using defaults.
+Recommend one currently available slot only when the retrieved context supports the user's request.
 Do not copy a precomputed rule-based recommendation. Make the decision from the retrieved context yourself.
+Supported vehicle types are only "two-wheeler" and "four-wheeler".
+If the user asks for an unsupported vehicle, a location that is not present in retrieved context, a specific unavailable slot, a duration outside 1-24 hours, or anything not answerable from retrieved Quickslot data, do not recommend a different slot.
+In those cases set recommendedSlotId to an empty string, confidence to 0, nextAction to "ASK_DETAILS" or "NO_SLOT_AVAILABLE", and explain the exact data limitation in reply, reason, and refusalReason.
+If you recommend a slot, recommendedSlotId must exactly match one slotId from retrieved Quickslot context where status is "available".
 Return only JSON matching this schema:
-{"reply":"string","vehicleType":"two-wheeler|four-wheeler","durationHours":1,"preferredLocation":"string","recommendedSlotId":"string|null","reason":"string","confidence":0.0,"nextAction":"ASK_DETAILS|SUGGEST_SLOT|PROCEED_TO_PAYMENT|NO_SLOT_AVAILABLE"}
+{"reply":"string","vehicleType":"two-wheeler|four-wheeler","durationHours":1,"preferredLocation":"string","recommendedSlotId":"string","reason":"string","refusalReason":"string","confidence":0.0,"nextAction":"ASK_DETAILS|SUGGEST_SLOT|PROCEED_TO_PAYMENT|NO_SLOT_AVAILABLE"}
 
 User message:
 ${message}
@@ -245,14 +250,21 @@ ${JSON.stringify(ragContext)}`,
     });
 
     const availableSlotIds = new Set(slots.filter((slot) => slot.status === "available").map((slot) => slot.slotId));
-    const recommendedSlotId = availableSlotIds.has(result.recommendedSlotId) ? result.recommendedSlotId : null;
+    const requestedRecommendation = String(result.recommendedSlotId || "").trim();
+    const recommendedSlotId = availableSlotIds.has(requestedRecommendation) ? requestedRecommendation : null;
     const confidence = Math.min(1, Math.max(0, Number(result.confidence) || 0));
+    const unavailableReply =
+      result.refusalReason ||
+      result.reason ||
+      "I cannot recommend a slot from the current Quickslot data for that request.";
 
     return {
       ...result,
       recommendedSlotId,
-      confidence,
+      confidence: recommendedSlotId ? confidence : 0,
       nextAction: recommendedSlotId ? result.nextAction : "NO_SLOT_AVAILABLE",
+      reply: recommendedSlotId ? result.reply : unavailableReply,
+      reason: recommendedSlotId ? result.reason : unavailableReply,
       aiProvider: "GEMINI",
       retrievedContext: {
         availableSlots: ragContext.availableSlots,

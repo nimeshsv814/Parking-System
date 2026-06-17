@@ -99,10 +99,13 @@ export const SmartParkingAssistant = () => {
       recommendedSlotId: response.recommendedSlotId,
       reason: response.reason || response.reply,
       score: response.confidence,
-      nextStep: response.nextAction === "NO_SLOT_AVAILABLE" ? "TRY_ANOTHER_LOCATION" : "PROCEED_TO_PAYMENT",
+      nextStep:
+        response.recommendedSlotId && ["PROCEED_TO_PAYMENT", "SUGGEST_SLOT"].includes(response.nextAction)
+          ? "PROCEED_TO_PAYMENT"
+          : "TRY_ANOTHER_LOCATION",
       paymentPrompt: response.recommendedSlotId
         ? `I found slot ${response.recommendedSlotId}. Shall I reserve it and take you to payment?`
-        : "I need another location or time to find an available slot.",
+        : response.refusalReason || "I need another valid location, vehicle type, or time to find an available slot.",
     });
   };
 
