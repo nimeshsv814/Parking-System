@@ -5,6 +5,10 @@ const {
   getGeminiPaymentRisk,
   getGeminiSlotRecommendation,
 } = require("../services/geminiAiService");
+const {
+  getAssistantOptions,
+  getAssistantRecommendation,
+} = require("../services/aiAssistantService");
 
 const getSlots = async () => {
   const response = await parkingClient.get("/internal/slots", { headers: internalHeaders() });
@@ -65,7 +69,47 @@ const getPaymentRisk = async (req, res) => {
   }
 };
 
+const getAssistantSlotOptions = async (req, res) => {
+  try {
+    const [slots, bookings] = await Promise.all([getSlots(), Booking.listBookings({ isAdmin: true })]);
+    return res.json(
+      getAssistantOptions({
+        slots,
+        bookings,
+        vehicleType: req.query.vehicleType,
+      })
+    );
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to load assistant options", error: error.message });
+  }
+};
+
+const getAssistantSlotRecommendation = async (req, res) => {
+  try {
+    const { vehicleType, location } = req.query;
+    if (!vehicleType || !location) {
+      return res.status(400).json({ message: "vehicleType and location are required" });
+    }
+
+    const [slots, bookings] = await Promise.all([getSlots(), Booking.listBookings({ isAdmin: true })]);
+    return res.json(
+      getAssistantRecommendation({
+        slots,
+        bookings,
+        userId: req.user.id,
+        vehicleType,
+        location,
+        durationHours: Number(req.query.durationHours || 1),
+      })
+    );
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to recommend assistant slot", error: error.message });
+  }
+};
+
 module.exports = {
+  getAssistantSlotOptions,
+  getAssistantSlotRecommendation,
   getDemandPrediction,
   getPaymentRisk,
   getRecommendation,

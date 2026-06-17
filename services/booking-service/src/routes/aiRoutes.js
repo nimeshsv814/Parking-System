@@ -1,5 +1,7 @@
 const express = require("express");
 const {
+  getAssistantSlotOptions,
+  getAssistantSlotRecommendation,
   getDemandPrediction,
   getPaymentRisk,
   getRecommendation,
@@ -9,6 +11,8 @@ const { authenticate } = require("../middleware/auth");
 const router = express.Router();
 
 router.get("/recommend-slot", authenticate, getRecommendation);
+router.get("/assistant/options", authenticate, getAssistantSlotOptions);
+router.get("/assistant/recommend", authenticate, getAssistantSlotRecommendation);
 router.get("/demand-prediction", authenticate, getDemandPrediction);
 router.get("/payment-risk/:bookingId", authenticate, getPaymentRisk);
 

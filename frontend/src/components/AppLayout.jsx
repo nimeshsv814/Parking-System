@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
+import { SmartParkingAssistant } from "./SmartParkingAssistant";
 import { useAuth } from "../context/AuthContext";
 
 const navItemClass = ({ isActive }) =>
@@ -55,6 +56,7 @@ export const AppLayout = () => {
         </div>
         <Outlet />
       </main>
+      <SmartParkingAssistant />
     </div>
   );
 };
