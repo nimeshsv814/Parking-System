@@ -137,7 +137,7 @@ variable "asg_notification_topic_name" {
 
 variable "frontend_image" {
   type    = string
-  default = "docker.io/nimeshsv814/tf-frontend:v6.0.5"
+  default = "docker.io/nimeshsv814/tf-frontend:v6.0.6"
 }
 
 variable "auth_service_image" {
@@ -152,12 +152,12 @@ variable "parking_service_image" {
 
 variable "booking_service_image" {
   type    = string
-  default = "docker.io/nimeshsv814/tf-booking-service:v6.0.5"
+  default = "docker.io/nimeshsv814/tf-booking-service:v6.0.6"
 }
 
 variable "payment_service_image" {
   type    = string
-  default = "docker.io/nimeshsv814/tf-payment-service:v4.0.3"
+  default = "docker.io/nimeshsv814/tf-payment-service:v6.0.6"
 }
 
 variable "scheduler_service_image" {

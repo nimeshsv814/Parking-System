@@ -143,6 +143,23 @@ const compactBookingsForRetrieval = (bookings, limit = 100) =>
     expiresAt: booking.expiresAt,
   }));
 
+const buildRagContext = ({ slots, bookings }) => {
+  const availableSlots = slots.filter((slot) => slot.status === "available");
+  const locations = Array.from(new Set(slots.map((slot) => normalizeLocation(slot.location)))).map((location) =>
+    getLocationDemand({ location, slots, bookings })
+  );
+
+  return {
+    generatedAt: new Date().toISOString(),
+    totalSlots: slots.length,
+    availableSlots: availableSlots.length,
+    activeBookings: bookings.filter((booking) => ["pending", "confirmed"].includes(booking.status)).length,
+    locationDemand: locations.sort((left, right) => left.demandScore - right.demandScore),
+    slots: compactSlotsForRetrieval(slots),
+    recentBookings: compactBookingsForRetrieval(bookings),
+  };
+};
+
 const inferVehicleType = (message, fallback = "four-wheeler") => {
   const text = String(message || "").toLowerCase();
   if (/two|2|bike|scooter|motorcycle/.test(text)) {
@@ -197,13 +214,15 @@ const getFallbackAssistantChat = ({ message, slots, bookings, userId }) => {
 };
 
 const getAssistantChatResponse = async ({ message, slots, bookings, userId }) => {
-  const fallback = getFallbackAssistantChat({ message, slots, bookings, userId });
-
   if (!isGeminiEnabled()) {
-    return fallback;
+    return {
+      ...getFallbackAssistantChat({ message, slots, bookings, userId }),
+      aiError: "Gemini is not configured, so the assistant used local fallback scoring.",
+    };
   }
 
   try {
+    const ragContext = buildRagContext({ slots, bookings });
     const result = await generateJson({
       schema: assistantChatSchema,
       temperature: 0.25,
@@ -211,6 +230,7 @@ const getAssistantChatResponse = async ({ message, slots, bookings, userId }) =>
 This is a RAG-style task: use only the retrieved live application context below, not generic assumptions.
 Understand the user's natural language request, infer vehicle type and duration when possible, compare available slots, historical booking pressure, current demand, price, and location.
 Recommend one currently available slot if possible. If details are missing, still make a reasonable recommendation using defaults.
+Do not copy a precomputed rule-based recommendation. Make the decision from the retrieved context yourself.
 Return only JSON matching this schema:
 {"reply":"string","vehicleType":"two-wheeler|four-wheeler","durationHours":1,"preferredLocation":"string","recommendedSlotId":"string|null","reason":"string","confidence":0.0,"nextAction":"ASK_DETAILS|SUGGEST_SLOT|PROCEED_TO_PAYMENT|NO_SLOT_AVAILABLE"}
 
@@ -220,30 +240,29 @@ ${message}
 User:
 ${JSON.stringify({ userId, now: new Date().toISOString() })}
 
-Retrieved live slots:
-${JSON.stringify(compactSlotsForRetrieval(slots))}
-
-Retrieved booking history:
-${JSON.stringify(compactBookingsForRetrieval(bookings))}
-
-Local fallback recommendation:
-${JSON.stringify(fallback)}`,
+Retrieved Quickslot context:
+${JSON.stringify(ragContext)}`,
     });
 
     const availableSlotIds = new Set(slots.filter((slot) => slot.status === "available").map((slot) => slot.slotId));
-    const recommendedSlotId = availableSlotIds.has(result.recommendedSlotId) ? result.recommendedSlotId : fallback.recommendedSlotId;
-    const confidence = Math.min(1, Math.max(0, Number(result.confidence) || fallback.confidence || 0));
+    const recommendedSlotId = availableSlotIds.has(result.recommendedSlotId) ? result.recommendedSlotId : null;
+    const confidence = Math.min(1, Math.max(0, Number(result.confidence) || 0));
 
     return {
-      ...fallback,
       ...result,
       recommendedSlotId,
       confidence,
+      nextAction: recommendedSlotId ? result.nextAction : "NO_SLOT_AVAILABLE",
       aiProvider: "GEMINI",
-      retrievedContext: fallback.retrievedContext,
+      retrievedContext: {
+        availableSlots: ragContext.availableSlots,
+        bookingHistoryRecords: ragContext.recentBookings.length,
+        locationDemand: ragContext.locationDemand.slice(0, 5),
+      },
     };
   } catch (error) {
     console.error("Gemini assistant chat fallback used:", error.response?.data || error.message);
+    const fallback = getFallbackAssistantChat({ message, slots, bookings, userId });
     return { ...fallback, aiError: "Gemini unavailable or returned invalid JSON" };
   }
 };

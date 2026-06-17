@@ -93,16 +93,32 @@ const getAssistantSlotRecommendation = async (req, res) => {
     }
 
     const [slots, bookings] = await Promise.all([getSlots(), Booking.listBookings({ isAdmin: true })]);
-    return res.json(
-      getAssistantRecommendation({
-        slots,
-        bookings,
-        userId: req.user.id,
-        vehicleType,
-        location,
-        durationHours: Number(req.query.durationHours || 1),
-      })
-    );
+    const fallbackRecommendation = getAssistantRecommendation({
+      slots,
+      bookings,
+      userId: req.user.id,
+      vehicleType,
+      location,
+      durationHours: Number(req.query.durationHours || 1),
+    });
+    const llmRecommendation = await getAssistantChatResponse({
+      message: `Recommend the best ${vehicleType} parking slot for ${Number(
+        req.query.durationHours || 1
+      )} hour(s) in ${location}. Prefer low demand and explain the reason.`,
+      slots,
+      bookings,
+      userId: req.user.id,
+    });
+
+    return res.json({
+      ...fallbackRecommendation,
+      ...llmRecommendation,
+      score: llmRecommendation.confidence ?? fallbackRecommendation.score,
+      paymentPrompt: llmRecommendation.recommendedSlotId
+        ? `I found slot ${llmRecommendation.recommendedSlotId}. Shall I reserve it and take you to payment?`
+        : fallbackRecommendation.paymentPrompt,
+      nextStep: llmRecommendation.recommendedSlotId ? "PROCEED_TO_PAYMENT" : "TRY_ANOTHER_LOCATION",
+    });
   } catch (error) {
     return res.status(500).json({ message: "Failed to recommend assistant slot", error: error.message });
   }
