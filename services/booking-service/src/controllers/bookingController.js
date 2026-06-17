@@ -4,6 +4,7 @@ const { getGeminiPaymentRisk } = require("../services/geminiAiService");
 
 const buildBookingId = () => `BKG-${Date.now()}${Math.floor(Math.random() * 1000)}`;
 const DEFAULT_BOOKING_AMOUNT = 50;
+const ALLOWED_VEHICLE_TYPES = ["two-wheeler", "four-wheeler"];
 
 const getAffordableAmount = (amount) => {
   const numericAmount = Number(amount);
@@ -11,6 +12,14 @@ const getAffordableAmount = (amount) => {
 };
 
 const normalizeBookingAmount = (booking) => ({ ...booking, amount: getAffordableAmount(booking.amount) });
+
+const getBookingDurationHours = (durationHours) => {
+  const numericDuration = Number(durationHours);
+  if (!Number.isFinite(numericDuration)) {
+    return 1;
+  }
+  return Math.min(24, Math.max(1, Math.ceil(numericDuration)));
+};
 
 const sendNotification = async ({ recipientUserId, bookingId, type, message, metadata = {} }) => {
   try {
@@ -49,9 +58,12 @@ const createBooking = async (req, res) => {
   const bookingId = buildBookingId();
 
   try {
-    const { slotId } = req.body;
+    const { slotId, vehicleType, durationHours } = req.body;
     if (!slotId) {
       return res.status(400).json({ message: "slotId is required" });
+    }
+    if (!ALLOWED_VEHICLE_TYPES.includes(vehicleType)) {
+      return res.status(400).json({ message: "vehicleType must be two-wheeler or four-wheeler" });
     }
 
     const slotResponse = await parkingClient.get(`/internal/slots/${slotId}`, {
@@ -63,12 +75,15 @@ const createBooking = async (req, res) => {
       return res.status(409).json({ message: "Selected slot is not available" });
     }
 
-    const bookingAmount = getAffordableAmount(slot.price);
+    const bookingDurationHours = getBookingDurationHours(durationHours);
+    const bookingAmount = getAffordableAmount(slot.price) * bookingDurationHours;
     const booking = await Booking.createBooking({
       bookingId,
       userId: req.user.id,
       userEmail: req.user.email,
       slotId,
+      vehicleType,
+      durationHours: bookingDurationHours,
       amount: bookingAmount,
       status: "pending",
       timestamp: new Date().toISOString(),
@@ -89,7 +104,7 @@ const createBooking = async (req, res) => {
       bookingId: booking.bookingId,
       type: "booking_pending",
       message: `Booking ${booking.bookingId} created for slot ${slotId}. Complete payment before expiration.`,
-      metadata: { slotId, amount: bookingAmount },
+      metadata: { slotId, amount: bookingAmount, vehicleType, durationHours: bookingDurationHours },
     });
 
     return res.status(201).json({ message: "Booking created", booking: normalizeBookingAmount(booking) });

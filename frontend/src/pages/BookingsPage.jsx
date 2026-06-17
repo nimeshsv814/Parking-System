@@ -65,12 +65,18 @@ export const BookingsPage = () => {
               <div>
                 <div className="flex flex-wrap items-center gap-3">
                   <h3 className="text-xl font-semibold">{booking.bookingId}</h3>
-                  <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${statusClasses[booking.status]}`}>
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${
+                      statusClasses[booking.status]
+                    }`}
+                  >
                     {booking.status}
                   </span>
                 </div>
                 <p className="mt-2 text-sm text-slate">
-                  Slot {booking.slotId} • {formatRupees(booking.amount)} • Created {new Date(booking.createdAt).toLocaleString()}
+                  Slot {booking.slotId} - {formatRupees(booking.amount)} -{" "}
+                  {(booking.vehicleType || "vehicle").replace("-", " ")} - {booking.durationHours || 1} hour(s) -
+                  Created {new Date(booking.createdAt).toLocaleString()}
                 </p>
                 {booking.status === "pending" && (
                   <p className="mt-2 text-sm text-amber-900">
@@ -103,4 +109,3 @@ export const BookingsPage = () => {
     </div>
   );
 };
-

@@ -130,7 +130,7 @@ export const PaymentPage = () => {
           Complete the Razorpay payment to confirm your slot. If payment is not completed in time, the scheduler will
           release the reservation automatically.
         </p>
-        <div className="mt-8 grid gap-4 sm:grid-cols-3">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-3xl bg-white/70 p-5">
             <p className="text-sm text-slate">Booking ID</p>
             <p className="mt-2 text-xl font-semibold">{booking.bookingId}</p>
@@ -142,6 +142,13 @@ export const PaymentPage = () => {
           <div className="rounded-3xl bg-white/70 p-5">
             <p className="text-sm text-slate">Amount</p>
             <p className="mt-2 text-xl font-semibold">{formatRupees(booking.amount)}</p>
+          </div>
+          <div className="rounded-3xl bg-white/70 p-5">
+            <p className="text-sm text-slate">Vehicle and duration</p>
+            <p className="mt-2 text-xl font-semibold capitalize">
+              {(booking.vehicleType || "vehicle").replace("-", " ")}
+            </p>
+            <p className="mt-1 text-sm text-slate">{booking.durationHours || 1} hour(s)</p>
           </div>
         </div>
       </section>

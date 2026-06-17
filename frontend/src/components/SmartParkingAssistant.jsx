@@ -17,6 +17,7 @@ export const SmartParkingAssistant = () => {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [vehicleType, setVehicleType] = useState("");
+  const [durationHours, setDurationHours] = useState(1);
   const [selectedLocation, setSelectedLocation] = useState("");
   const [options, setOptions] = useState(null);
   const [recommendation, setRecommendation] = useState(null);
@@ -71,7 +72,7 @@ export const SmartParkingAssistant = () => {
       const response = await aiApi.get(
         `/assistant/recommend?vehicleType=${encodeURIComponent(vehicleType)}&location=${encodeURIComponent(
           selectedLocation
-        )}`
+        )}&durationHours=${encodeURIComponent(Math.min(24, Math.max(1, Number(durationHours) || 1)))}`
       );
       setRecommendation(response.data);
     } catch (error) {
@@ -88,7 +89,11 @@ export const SmartParkingAssistant = () => {
 
     setBooking(true);
     try {
-      const response = await bookingApi.post("/bookings", { slotId: recommendation.recommendedSlotId });
+      const response = await bookingApi.post("/bookings", {
+        slotId: recommendation.recommendedSlotId,
+        vehicleType,
+        durationHours: Math.min(24, Math.max(1, Number(durationHours) || 1)),
+      });
       setOpen(false);
       pushToast({
         title: "Slot reserved by AI assistant",
@@ -140,6 +145,7 @@ export const SmartParkingAssistant = () => {
                       className={vehicleType === item.id ? "button-primary w-full" : "button-secondary w-full"}
                       onClick={() => {
                         setVehicleType(item.id);
+                        setDurationHours(1);
                         setSelectedLocation("");
                         setRecommendation(null);
                       }}
@@ -149,6 +155,29 @@ export const SmartParkingAssistant = () => {
                   ))}
                 </div>
               </section>
+
+              {vehicleType && (
+                <section>
+                  <label className="text-sm font-semibold text-ink" htmlFor="assistantDurationHours">
+                    How many hours will you park?
+                  </label>
+                  <div className="mt-3 flex items-center gap-3">
+                    <input
+                      id="assistantDurationHours"
+                      className="input-shell"
+                      type="number"
+                      min="1"
+                      max="24"
+                      value={durationHours}
+                      onChange={(event) => {
+                        setDurationHours(event.target.value);
+                        setRecommendation(null);
+                      }}
+                    />
+                    <span className="whitespace-nowrap text-sm font-semibold text-slate">hours</span>
+                  </div>
+                </section>
+              )}
 
               {vehicleType && (
                 <section>

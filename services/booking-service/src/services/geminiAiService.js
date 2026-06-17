@@ -8,6 +8,8 @@ const compactBookings = (bookings, limit = 80) =>
     bookingId: booking.bookingId,
     userId: booking.userId,
     slotId: booking.slotId,
+    vehicleType: booking.vehicleType,
+    durationHours: Number(booking.durationHours) || 1,
     amount: Number(booking.amount) || 0,
     status: booking.status,
     createdAt: booking.createdAt || booking.timestamp,
