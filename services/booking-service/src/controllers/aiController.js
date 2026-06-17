@@ -6,6 +6,7 @@ const {
   getGeminiSlotRecommendation,
 } = require("../services/geminiAiService");
 const {
+  getAssistantChatResponse,
   getAssistantOptions,
   getAssistantRecommendation,
 } = require("../services/aiAssistantService");
@@ -107,7 +108,29 @@ const getAssistantSlotRecommendation = async (req, res) => {
   }
 };
 
+const chatWithAssistant = async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message || String(message).trim().length < 2) {
+      return res.status(400).json({ message: "message is required" });
+    }
+
+    const [slots, bookings] = await Promise.all([getSlots(), Booking.listBookings({ isAdmin: true })]);
+    return res.json(
+      await getAssistantChatResponse({
+        message: String(message).trim(),
+        slots,
+        bookings,
+        userId: req.user.id,
+      })
+    );
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to chat with assistant", error: error.message });
+  }
+};
+
 module.exports = {
+  chatWithAssistant,
   getAssistantSlotOptions,
   getAssistantSlotRecommendation,
   getDemandPrediction,

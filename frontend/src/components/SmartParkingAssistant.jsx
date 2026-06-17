@@ -21,6 +21,8 @@ export const SmartParkingAssistant = () => {
   const [selectedLocation, setSelectedLocation] = useState("");
   const [options, setOptions] = useState(null);
   const [recommendation, setRecommendation] = useState(null);
+  const [chatMessage, setChatMessage] = useState("I need a four-wheeler slot for 2 hours with low demand.");
+  const [chatResponse, setChatResponse] = useState(null);
   const [loading, setLoading] = useState(false);
   const [booking, setBooking] = useState(false);
 
@@ -82,6 +84,45 @@ export const SmartParkingAssistant = () => {
     }
   };
 
+  const applyAssistantResponse = (response) => {
+    if (response.vehicleType) {
+      setVehicleType(response.vehicleType);
+    }
+    if (response.durationHours) {
+      setDurationHours(response.durationHours);
+    }
+    if (response.preferredLocation) {
+      setSelectedLocation(response.preferredLocation);
+    }
+    setChatResponse(response);
+    setRecommendation({
+      recommendedSlotId: response.recommendedSlotId,
+      reason: response.reason || response.reply,
+      score: response.confidence,
+      nextStep: response.nextAction === "NO_SLOT_AVAILABLE" ? "TRY_ANOTHER_LOCATION" : "PROCEED_TO_PAYMENT",
+      paymentPrompt: response.recommendedSlotId
+        ? `I found slot ${response.recommendedSlotId}. Shall I reserve it and take you to payment?`
+        : "I need another location or time to find an available slot.",
+    });
+  };
+
+  const handleChatSubmit = async (event) => {
+    event.preventDefault();
+    if (!chatMessage.trim()) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await aiApi.post("/assistant/chat", { message: chatMessage.trim() });
+      applyAssistantResponse(response.data);
+    } catch (error) {
+      pushToast({ title: "Assistant chat failed", description: getApiError(error), tone: "error" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleProceedToPayment = async () => {
     if (!recommendation?.recommendedSlotId) {
       return;
@@ -132,6 +173,38 @@ export const SmartParkingAssistant = () => {
             </div>
 
             <div className="mt-6 space-y-5">
+              <section className="rounded-2xl border border-ink/10 bg-white/75 p-4">
+                <p className="text-sm font-semibold text-ink">Ask in natural language</p>
+                <form className="mt-3 space-y-3" onSubmit={handleChatSubmit}>
+                  <textarea
+                    className="input-shell min-h-24 resize-none"
+                    value={chatMessage}
+                    onChange={(event) => setChatMessage(event.target.value)}
+                    placeholder="Example: I need a two-wheeler slot for 3 hours near a low-demand area."
+                  />
+                  <button type="submit" className="button-primary w-full" disabled={loading}>
+                    {loading ? "Asking Gemini..." : "Ask AI assistant"}
+                  </button>
+                </form>
+                {chatResponse && (
+                  <div className="mt-4 rounded-2xl bg-mint/10 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-green-950">AI response</p>
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-green-900">
+                        {chatResponse.aiProvider}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-green-950">{chatResponse.reply}</p>
+                    {chatResponse.retrievedContext && (
+                      <p className="mt-2 text-xs text-green-900">
+                        Grounded with {chatResponse.retrievedContext.availableSlots} available slots and{" "}
+                        {chatResponse.retrievedContext.bookingHistoryRecords} booking-history records.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </section>
+
               <section>
                 <p className="text-sm font-semibold text-ink">Choose your vehicle type</p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
