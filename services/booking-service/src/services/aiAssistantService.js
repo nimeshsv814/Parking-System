@@ -161,6 +161,49 @@ const buildRagContext = ({ slots, bookings }) => {
   };
 };
 
+const inferBudgetAmount = (message) => {
+  const text = String(message || "").toLowerCase();
+  const match =
+    text.match(/(?:rs\.?|rupees?|inr|₹)\s*(\d+(?:\.\d+)?)/i) ||
+    text.match(/(\d+(?:\.\d+)?)\s*(?:rs\.?|rupees?|inr|₹)/i) ||
+    text.match(/(?:budget|under|below|within|max(?:imum)?|price)\D{0,12}(\d+(?:\.\d+)?)/i);
+
+  if (!match) {
+    return null;
+  }
+
+  const amount = Number(match[1]);
+  return Number.isFinite(amount) && amount > 0 ? amount : null;
+};
+
+const getClosestAvailableSlotsByPrice = ({ slots, durationHours, budgetAmount, limit = 3 }) => {
+  const duration = Math.min(24, Math.max(1, Number(durationHours) || 1));
+  return slots
+    .filter((slot) => slot.status === "available")
+    .map((slot) => {
+      const totalPrice = (Number(slot.price) || 0) * duration;
+      return {
+        slotId: slot.slotId,
+        location: slot.location,
+        basePrice: Number(slot.price) || 0,
+        durationHours: duration,
+        totalPrice,
+        overBudgetBy: budgetAmount == null ? 0 : Math.max(0, totalPrice - budgetAmount),
+      };
+    })
+    .sort((left, right) => {
+      if (budgetAmount == null) {
+        return left.totalPrice - right.totalPrice || String(left.slotId).localeCompare(String(right.slotId));
+      }
+      return (
+        Math.abs(left.totalPrice - budgetAmount) - Math.abs(right.totalPrice - budgetAmount) ||
+        left.totalPrice - right.totalPrice ||
+        String(left.slotId).localeCompare(String(right.slotId))
+      );
+    })
+    .slice(0, limit);
+};
+
 const inferVehicleType = (message, fallback = "four-wheeler") => {
   const text = String(message || "").toLowerCase();
   if (/two|2|bike|scooter|motorcycle/.test(text)) {
@@ -183,10 +226,42 @@ const inferDurationHours = (message, fallback = 1) => {
 const getFallbackAssistantChat = ({ message, slots, bookings, userId }) => {
   const vehicleType = inferVehicleType(message);
   const durationHours = inferDurationHours(message);
-  const options = getAssistantOptions({ slots, bookings, vehicleType });
+  const budgetAmount = inferBudgetAmount(message);
+  const withinBudgetSlots =
+    budgetAmount == null
+      ? slots
+      : slots.filter((slot) => slot.status !== "available" || (Number(slot.price) || 0) * durationHours <= budgetAmount);
+  const closestSlots = getClosestAvailableSlotsByPrice({ slots, durationHours, budgetAmount });
+
+  if (budgetAmount != null && closestSlots.every((slot) => slot.totalPrice > budgetAmount)) {
+    const closestText = closestSlots
+      .map((slot) => `${slot.slotId} at Rs ${slot.totalPrice} for ${durationHours} hour(s)`)
+      .join(", ");
+    const messageText = `We do not have an available slot within Rs ${budgetAmount} for ${durationHours} hour(s). Closest available option(s): ${closestText}.`;
+    return {
+      reply: messageText,
+      vehicleType,
+      durationHours,
+      budgetAmount,
+      preferredLocation: "",
+      recommendedSlotId: null,
+      reason: messageText,
+      refusalReason: messageText,
+      confidence: 0,
+      nextAction: "NO_SLOT_AVAILABLE",
+      aiProvider: "LOCAL_FALLBACK",
+      retrievedContext: {
+        availableSlots: slots.filter((slot) => slot.status === "available").length,
+        bookingHistoryRecords: bookings.length,
+        closestPriceOptions: closestSlots,
+      },
+    };
+  }
+
+  const options = getAssistantOptions({ slots: withinBudgetSlots, bookings, vehicleType });
   const location = options.suggestedLocation?.location || normalizeLocation(slots[0]?.location);
   const recommendation = getAssistantRecommendation({
-    slots,
+    slots: withinBudgetSlots,
     bookings,
     userId,
     vehicleType,
@@ -200,6 +275,7 @@ const getFallbackAssistantChat = ({ message, slots, bookings, userId }) => {
       : `I could not find an available ${vehicleType.replace("-", " ")} slot for that request right now.`,
     vehicleType,
     durationHours,
+    budgetAmount,
     preferredLocation: location,
     recommendedSlotId: recommendation.recommendedSlotId,
     reason: recommendation.reason,
@@ -209,6 +285,7 @@ const getFallbackAssistantChat = ({ message, slots, bookings, userId }) => {
     retrievedContext: {
       availableSlots: slots.filter((slot) => slot.status === "available").length,
       bookingHistoryRecords: bookings.length,
+      closestPriceOptions: closestSlots,
       locationDemand: options.locations.slice(0, 5),
     },
   };
@@ -224,6 +301,13 @@ const getAssistantChatResponse = async ({ message, slots, bookings, userId }) =>
 
   try {
     const ragContext = buildRagContext({ slots, bookings });
+    const requestedBudgetAmount = inferBudgetAmount(message);
+    const requestedDurationHours = inferDurationHours(message);
+    const closestPriceOptions = getClosestAvailableSlotsByPrice({
+      slots,
+      durationHours: requestedDurationHours,
+      budgetAmount: requestedBudgetAmount,
+    });
     const result = await generateJson({
       schema: assistantChatSchema,
       temperature: 0.25,
@@ -233,6 +317,8 @@ Understand the user's natural language request, infer vehicle type and duration 
 Recommend one currently available slot only when the retrieved context supports the user's request.
 Do not copy a precomputed rule-based recommendation. Make the decision from the retrieved context yourself.
 Supported vehicle types are only "two-wheeler" and "four-wheeler".
+If the user asks for a price or budget, treat it as the maximum total booking amount for the requested duration. Do not recommend any slot whose total price exceeds that budget.
+If no available slot is within the requested budget, do not recommend a slot. Instead say Quickslot does not have that price and list the closest available options from closestPriceOptions with their prices.
 If the user asks for an unsupported vehicle, a location that is not present in retrieved context, a specific unavailable slot, a duration outside 1-24 hours, or anything not answerable from retrieved Quickslot data, do not recommend a different slot.
 In those cases set recommendedSlotId to an empty string, confidence to 0, nextAction to "ASK_DETAILS" or "NO_SLOT_AVAILABLE", and explain the exact data limitation in reply, reason, and refusalReason.
 If you recommend a slot, recommendedSlotId must exactly match one slotId from retrieved Quickslot context where status is "available".
@@ -246,17 +332,33 @@ User:
 ${JSON.stringify({ userId, now: new Date().toISOString() })}
 
 Retrieved Quickslot context:
-${JSON.stringify(ragContext)}`,
+${JSON.stringify({
+  ...ragContext,
+  requestedBudgetAmount,
+  requestedDurationHours,
+  closestPriceOptions,
+})}`,
     });
 
-    const availableSlotIds = new Set(slots.filter((slot) => slot.status === "available").map((slot) => slot.slotId));
+    const availableSlotIds = new Set(
+      slots
+        .filter((slot) => {
+          const totalPrice = (Number(slot.price) || 0) * requestedDurationHours;
+          return slot.status === "available" && (requestedBudgetAmount == null || totalPrice <= requestedBudgetAmount);
+        })
+        .map((slot) => slot.slotId)
+    );
     const requestedRecommendation = String(result.recommendedSlotId || "").trim();
     const recommendedSlotId = availableSlotIds.has(requestedRecommendation) ? requestedRecommendation : null;
     const confidence = Math.min(1, Math.max(0, Number(result.confidence) || 0));
     const unavailableReply =
       result.refusalReason ||
       result.reason ||
-      "I cannot recommend a slot from the current Quickslot data for that request.";
+      (requestedBudgetAmount == null
+        ? "I cannot recommend a slot from the current Quickslot data for that request."
+        : `We do not have an available slot within Rs ${requestedBudgetAmount}. Closest available option(s): ${closestPriceOptions
+            .map((slot) => `${slot.slotId} at Rs ${slot.totalPrice}`)
+            .join(", ")}.`);
 
     return {
       ...result,
@@ -269,6 +371,7 @@ ${JSON.stringify(ragContext)}`,
       retrievedContext: {
         availableSlots: ragContext.availableSlots,
         bookingHistoryRecords: ragContext.recentBookings.length,
+        closestPriceOptions,
         locationDemand: ragContext.locationDemand.slice(0, 5),
       },
     };

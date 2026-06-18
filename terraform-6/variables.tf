@@ -137,7 +137,7 @@ variable "asg_notification_topic_name" {
 
 variable "frontend_image" {
   type    = string
-  default = "docker.io/nimeshsv814/tf-frontend:v6.0.6"
+  default = "docker.io/nimeshsv814/tf-frontend:v6.0.8"
 }
 
 variable "auth_service_image" {
@@ -152,7 +152,7 @@ variable "parking_service_image" {
 
 variable "booking_service_image" {
   type    = string
-  default = "docker.io/nimeshsv814/tf-booking-service:v6.0.7"
+  default = "docker.io/nimeshsv814/tf-booking-service:v6.0.8"
 }
 
 variable "payment_service_image" {
@@ -359,7 +359,7 @@ variable "create_app_config_secret" {
 variable "app_config_secret_name" {
   type        = string
   description = "Name of the Secrets Manager secret Terraform creates for app runtime secrets"
-  default     = "quickslot-03"
+  default     = "quickslot-04"
 }
 
 variable "app_config_secret_recovery_window_in_days" {

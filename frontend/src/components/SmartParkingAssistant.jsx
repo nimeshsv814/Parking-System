@@ -204,6 +204,23 @@ export const SmartParkingAssistant = () => {
                         {chatResponse.retrievedContext.bookingHistoryRecords} booking-history records.
                       </p>
                     )}
+                    {chatResponse.retrievedContext?.closestPriceOptions?.length > 0 && (
+                      <div className="mt-3 rounded-2xl bg-white/80 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-900">
+                          Closest available prices
+                        </p>
+                        <div className="mt-2 space-y-2">
+                          {chatResponse.retrievedContext.closestPriceOptions.map((slot) => (
+                            <div key={slot.slotId} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                              <span className="font-semibold text-green-950">
+                                {slot.slotId} - {slot.location}
+                              </span>
+                              <span className="text-green-900">Rs {slot.totalPrice}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </section>
