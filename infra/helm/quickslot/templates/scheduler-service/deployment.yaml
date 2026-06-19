@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scheduler-service
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    Application: smart-parking
+    app: scheduler-service
+spec:
+  replicas: {{ .Values.replicaCount.scheduler }}
+  selector:
+    matchLabels:
+      app: scheduler-service
+  template:
+    metadata:
+      labels:
+        Application: smart-parking
+        app: scheduler-service
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      containers:
+        - name: scheduler-service
+          image: {{ .Values.images.scheduler }}
+          ports:
+            - containerPort: 4005
+          env:
+            - name: PORT
+              value: "4005"
+            - name: AWS_REGION
+              value: {{ .Values.aws.region | quote }}
+            - name: BOOKING_TABLE
+              value: {{ .Values.dynamodb.bookingTable | quote }}
+            - name: BOOKING_SERVICE_URL
+              value: "http://booking-service:4003"
+            - name: CRON_SCHEDULE
+              value: {{ .Values.scheduler.cronSchedule | quote }}
+            - name: INTERNAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.runtimeSecret.name }}
+                  key: INTERNAL_API_KEY
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

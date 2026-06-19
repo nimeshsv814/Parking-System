@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    Application: smart-parking
+    app: auth-service
+spec:
+  replicas: {{ .Values.replicaCount.auth }}
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        Application: smart-parking
+        app: auth-service
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      containers:
+        - name: auth-service
+          image: {{ .Values.images.auth }}
+          ports:
+            - containerPort: 4001
+          env:
+            - name: PORT
+              value: "4001"
+            - name: AWS_REGION
+              value: {{ .Values.aws.region | quote }}
+            - name: AUTH_USERS_TABLE
+              value: {{ .Values.dynamodb.authUsersTable | quote }}
+            - name: JWT_EXPIRES_IN
+              value: "7d"
+            - name: CORS_ORIGIN
+              value: "*"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.runtimeSecret.name }}
+                  key: JWT_SECRET
+            - name: SEED_ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.runtimeSecret.name }}
+                  key: SEED_ADMIN_EMAIL
+            - name: SEED_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.runtimeSecret.name }}
+                  key: SEED_ADMIN_PASSWORD
+            - name: SEED_USER_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.runtimeSecret.name }}
+                  key: SEED_USER_EMAIL
+            - name: SEED_USER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.runtimeSecret.name }}
+                  key: SEED_USER_PASSWORD
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 4001
+            initialDelaySeconds: 15
+            periodSeconds: 10

@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: booking-service
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    Application: smart-parking
+    app: booking-service
+spec:
+  replicas: {{ .Values.replicaCount.booking }}
+  selector:
+    matchLabels:
+      app: booking-service
+  template:
+    metadata:
+      labels:
+        Application: smart-parking
+        app: booking-service
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      containers:
+        - name: booking-service
+          image: {{ .Values.images.booking }}
+          ports:
+            - containerPort: 4003
+          env:
+            - name: PORT
+              value: "4003"
+            - name: AWS_REGION
+              value: {{ .Values.aws.region | quote }}
+            - name: BOOKING_TABLE
+              value: {{ .Values.dynamodb.bookingTable | quote }}
+            - name: CORS_ORIGIN
+              value: "*"
+            - name: PARKING_SERVICE_URL
+              value: "http://parking-service:4002"
+            - name: NOTIFICATION_SERVICE_URL
+              value: "http://notification-service:4006"
+            - name: BOOKING_HOLD_MINUTES
+              value: {{ .Values.booking.holdMinutes | quote }}
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.runtimeSecret.name }}
+                  key: JWT_SECRET
+            - name: INTERNAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.runtimeSecret.name }}
+                  key: INTERNAL_API_KEY
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.runtimeSecret.name }}
+                  key: GEMINI_API_KEY
+            - name: GEMINI_MODEL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.runtimeSecret.name }}
+                  key: GEMINI_MODEL
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 4003
+            initialDelaySeconds: 15
+            periodSeconds: 10

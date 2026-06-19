@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quickslot-kgateway
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    Application: smart-parking
+    app: quickslot-kgateway
+spec:
+  replicas: {{ .Values.replicaCount.kgateway }}
+  selector:
+    matchLabels:
+      app: quickslot-kgateway
+  template:
+    metadata:
+      labels:
+        Application: smart-parking
+        app: quickslot-kgateway
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/conf.d
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: config
+          configMap:
+            name: quickslot-kgateway

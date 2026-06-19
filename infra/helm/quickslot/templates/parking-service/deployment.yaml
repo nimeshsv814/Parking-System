@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: parking-service
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    Application: smart-parking
+    app: parking-service
+spec:
+  replicas: {{ .Values.replicaCount.parking }}
+  selector:
+    matchLabels:
+      app: parking-service
+  template:
+    metadata:
+      labels:
+        Application: smart-parking
+        app: parking-service
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      containers:
+        - name: parking-service
+          image: {{ .Values.images.parking }}
+          ports:
+            - containerPort: 4002
+          env:
+            - name: PORT
+              value: "4002"
+            - name: AWS_REGION
+              value: {{ .Values.aws.region | quote }}
+            - name: PARKING_SLOTS_TABLE
+              value: {{ .Values.dynamodb.parkingSlotsTable | quote }}
+            - name: CORS_ORIGIN
+              value: "*"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.runtimeSecret.name }}
+                  key: JWT_SECRET
+            - name: INTERNAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.runtimeSecret.name }}
+                  key: INTERNAL_API_KEY
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 4002
+            initialDelaySeconds: 15
+            periodSeconds: 10

@@ -1,0 +1,24 @@
+namespace:
+  name: quickslot
+
+serviceAccount:
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::533595510771:role/quickslot-eks-app-pods-role
+
+runtimeSecret:
+  data:
+    JWT_SECRET: change-this
+    INTERNAL_API_KEY: change-this
+    SEED_ADMIN_EMAIL: admin@parking.com
+    SEED_ADMIN_PASSWORD: change-this
+    SEED_USER_EMAIL: user@parking.com
+    SEED_USER_PASSWORD: change-this
+    RAZORPAY_KEY_ID: change-this
+    RAZORPAY_KEY_SECRET: change-this
+    GEMINI_API_KEY: ""
+    GEMINI_MODEL: gemini-2.5-flash
+
+ingress:
+  subnets:
+    - subnet-xxxxxxxxxxxxxxxxx
+    - subnet-yyyyyyyyyyyyyyyyy

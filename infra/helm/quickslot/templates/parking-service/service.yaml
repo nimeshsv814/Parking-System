@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: parking-service
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    Application: smart-parking
+    app: parking-service
+spec:
+  type: ClusterIP
+  selector:
+    app: parking-service
+  ports:
+    - port: 4002
+      targetPort: 4002

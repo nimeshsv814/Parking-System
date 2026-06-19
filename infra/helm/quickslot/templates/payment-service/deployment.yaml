@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    Application: smart-parking
+    app: payment-service
+spec:
+  replicas: {{ .Values.replicaCount.payment }}
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        Application: smart-parking
+        app: payment-service
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      containers:
+        - name: payment-service
+          image: {{ .Values.images.payment }}
+          ports:
+            - containerPort: 4004
+          env:
+            - name: PORT
+              value: "4004"
+            - name: AWS_REGION
+              value: {{ .Values.aws.region | quote }}
+            - name: PAYMENT_TABLE
+              value: {{ .Values.dynamodb.paymentTable | quote }}
+            - name: CORS_ORIGIN
+              value: "*"
+            - name: BOOKING_SERVICE_URL
+              value: "http://booking-service:4003"
+            - name: NOTIFICATION_SERVICE_URL
+              value: "http://notification-service:4006"
+            - name: RAZORPAY_CURRENCY
+              value: {{ .Values.payment.razorpayCurrency | quote }}
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.runtimeSecret.name }}
+                  key: JWT_SECRET
+            - name: INTERNAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.runtimeSecret.name }}
+                  key: INTERNAL_API_KEY
+            - name: RAZORPAY_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.runtimeSecret.name }}
+                  key: RAZORPAY_KEY_ID
+            - name: RAZORPAY_KEY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.runtimeSecret.name }}
+                  key: RAZORPAY_KEY_SECRET
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 4004
+            initialDelaySeconds: 15
+            periodSeconds: 10

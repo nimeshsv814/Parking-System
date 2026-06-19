@@ -1,0 +1,120 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: quickslot-kgateway
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    Application: smart-parking
+    app: quickslot-kgateway
+data:
+  default.conf: |
+    server {
+        listen 8080;
+        server_name _;
+
+        location = /health {
+            return 200 "ok";
+        }
+
+        location /auth/ {
+            rewrite ^/auth/(.*)$ /$1 break;
+            proxy_pass http://auth-service:4001/;
+        }
+
+        location /api/auth/ {
+            rewrite ^/api/auth/(.*)$ /$1 break;
+            proxy_pass http://auth-service:4001;
+        }
+
+        location /parking/ {
+            rewrite ^/parking/(.*)$ /$1 break;
+            proxy_pass http://parking-service:4002/;
+        }
+
+        location /api/parking/ {
+            rewrite ^/api/parking/(.*)$ /$1 break;
+            proxy_pass http://parking-service:4002;
+        }
+
+        location /booking/ {
+            rewrite ^/booking/(.*)$ /$1 break;
+            proxy_pass http://booking-service:4003/;
+        }
+
+        location = /booking/book-slot {
+            rewrite ^ /bookings break;
+            proxy_pass http://booking-service:4003;
+        }
+
+        location = /api/booking/book-slot {
+            rewrite ^ /bookings break;
+            proxy_pass http://booking-service:4003;
+        }
+
+        location /api/booking/ {
+            rewrite ^/api/booking/(.*)$ /$1 break;
+            proxy_pass http://booking-service:4003;
+        }
+
+        location /ai/ {
+            proxy_pass http://booking-service:4003/ai/;
+        }
+
+        location /api/ai/ {
+            proxy_pass http://booking-service:4003/api/ai/;
+        }
+
+        location = /payment/create-order {
+            rewrite ^ /payments/razorpay/order break;
+            proxy_pass http://payment-service:4004;
+        }
+
+        location = /api/payment/create-order {
+            rewrite ^ /payments/razorpay/order break;
+            proxy_pass http://payment-service:4004;
+        }
+
+        location = /payment/verify-payment {
+            rewrite ^ /payments/razorpay/verify break;
+            proxy_pass http://payment-service:4004;
+        }
+
+        location = /api/payment/verify-payment {
+            rewrite ^ /payments/razorpay/verify break;
+            proxy_pass http://payment-service:4004;
+        }
+
+        location = /payment/process-payment {
+            rewrite ^ /payments/process break;
+            proxy_pass http://payment-service:4004;
+        }
+
+        location = /api/payment/process-payment {
+            rewrite ^ /payments/process break;
+            proxy_pass http://payment-service:4004;
+        }
+
+        location /payment/ {
+            rewrite ^/payment/(.*)$ /$1 break;
+            proxy_pass http://payment-service:4004/;
+        }
+
+        location /api/payment/ {
+            rewrite ^/api/payment/(.*)$ /$1 break;
+            proxy_pass http://payment-service:4004;
+        }
+
+        location /notification/ {
+            rewrite ^/notification/(.*)$ /$1 break;
+            proxy_pass http://notification-service:4006/;
+        }
+
+        location /api/notification/ {
+            rewrite ^/api/notification/(.*)$ /$1 break;
+            proxy_pass http://notification-service:4006;
+        }
+
+        location / {
+            proxy_pass http://frontend:80;
+        }
+    }

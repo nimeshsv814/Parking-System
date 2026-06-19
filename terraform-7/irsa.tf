@@ -53,16 +53,3 @@ resource "aws_iam_role_policy" "app_pods_dynamodb" {
     ]
   })
 }
-
-resource "kubernetes_service_account" "app" {
-  metadata {
-    name      = "quickslot-app"
-    namespace = kubernetes_namespace.quickslot.metadata[0].name
-
-    annotations = {
-      "eks.amazonaws.com/role-arn" = aws_iam_role.app_pods.arn
-    }
-  }
-
-  automount_service_account_token = true
-}

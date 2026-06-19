@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    Application: smart-parking
+    app: notification-service
+spec:
+  replicas: {{ .Values.replicaCount.notification }}
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        Application: smart-parking
+        app: notification-service
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      containers:
+        - name: notification-service
+          image: {{ .Values.images.notification }}
+          ports:
+            - containerPort: 4006
+          env:
+            - name: PORT
+              value: "4006"
+            - name: AWS_REGION
+              value: {{ .Values.aws.region | quote }}
+            - name: NOTIFICATION_TABLE
+              value: {{ .Values.dynamodb.notificationTable | quote }}
+            - name: CORS_ORIGIN
+              value: "*"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.runtimeSecret.name }}
+                  key: JWT_SECRET
+            - name: INTERNAL_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.runtimeSecret.name }}
+                  key: INTERNAL_API_KEY
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 4006
+            initialDelaySeconds: 15
+            periodSeconds: 10

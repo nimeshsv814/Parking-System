@@ -1,0 +1,96 @@
+namespace:
+  create: true
+  name: quickslot
+
+aws:
+  region: us-east-1
+
+serviceAccount:
+  create: true
+  name: quickslot-app
+  annotations: {}
+  # Example for IRSA:
+  # annotations:
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::<account-id>:role/quickslot-eks-app-pods-role
+
+runtimeSecret:
+  create: true
+  name: quickslot-runtime
+  data:
+    JWT_SECRET: replace-me
+    INTERNAL_API_KEY: replace-me
+    SEED_ADMIN_EMAIL: admin@parking.com
+    SEED_ADMIN_PASSWORD: replace-me
+    SEED_USER_EMAIL: user@parking.com
+    SEED_USER_PASSWORD: replace-me
+    RAZORPAY_KEY_ID: replace-me
+    RAZORPAY_KEY_SECRET: replace-me
+    GEMINI_API_KEY: ""
+    GEMINI_MODEL: gemini-2.5-flash
+
+dynamodb:
+  authUsersTable: smart-parking-users-eks
+  parkingSlotsTable: smart-parking-slots-eks
+  bookingTable: smart-parking-bookings-eks
+  paymentTable: smart-parking-payments-eks
+  notificationTable: smart-parking-notifications-eks
+
+images:
+  frontend: docker.io/nimeshsv814/tf-frontend:v6.0.8
+  auth: docker.io/nimeshsv814/tf-auth-service:v4.0.0
+  parking: docker.io/nimeshsv814/tf-parking-service:v5.0.0
+  booking: docker.io/nimeshsv814/tf-booking-service:v6.0.8
+  payment: docker.io/nimeshsv814/tf-payment-service:v6.0.6
+  scheduler: docker.io/nimeshsv814/tf-scheduler-service:latest
+  notification: docker.io/nimeshsv814/tf-notification-service:v4.0.0
+
+replicaCount:
+  frontend: 2
+  auth: 2
+  parking: 2
+  booking: 2
+  payment: 2
+  scheduler: 1
+  notification: 2
+  kgateway: 2
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+payment:
+  razorpayCurrency: INR
+
+booking:
+  holdMinutes: "10"
+
+scheduler:
+  cronSchedule: "* * * * *"
+
+ingress:
+  enabled: true
+  className: alb
+  loadBalancerName: quickslot-eks-alb
+  groupName: quickslot
+  scheme: internet-facing
+  targetType: ip
+  subnets: []
+  annotations: {}
+  paths:
+    - /auth
+    - /api/auth
+    - /parking
+    - /api/parking
+    - /booking
+    - /api/booking
+    - /ai
+    - /api/ai
+    - /payment
+    - /api/payment
+    - /notification
+    - /api/notification
+    - /

@@ -7,7 +7,7 @@ output "cluster_endpoint" {
 }
 
 output "namespace" {
-  value = kubernetes_namespace.quickslot.metadata[0].name
+  value = var.namespace
 }
 
 output "dynamodb_tables" {
@@ -20,11 +20,20 @@ output "dynamodb_tables" {
   }
 }
 
-output "alb_hostname" {
-  description = "Run terraform refresh or terraform apply again if this is initially empty while the AWS Load Balancer Controller reconciles."
-  value       = try(kubernetes_ingress_v1.alb.status[0].load_balancer[0].ingress[0].hostname, null)
+output "app_pods_role_arn" {
+  description = "Use this ARN in Helm values as serviceAccount.annotations.eks.amazonaws.com/role-arn."
+  value       = aws_iam_role.app_pods.arn
+}
+
+output "public_subnet_ids" {
+  description = "Use these subnet IDs in Helm values ingress.subnets so the AWS Load Balancer Controller creates the public ALB."
+  value       = aws_subnet.public[*].id
 }
 
 output "kubectl_config_command" {
   value = "aws eks update-kubeconfig --region ${var.aws_region} --name ${aws_eks_cluster.this.name}"
+}
+
+output "helm_install_hint" {
+  value = "helm upgrade --install quickslot ../infra/helm/quickslot --namespace ${var.namespace} --create-namespace --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${aws_iam_role.app_pods.arn} --set ingress.subnets={${join(",", aws_subnet.public[*].id)}}"
 }
