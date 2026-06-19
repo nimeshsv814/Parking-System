@@ -349,7 +349,7 @@ variable "create_app_config_secret" {
 variable "app_config_secret_name" {
   type        = string
   description = "Name of the Secrets Manager secret Terraform creates for app runtime secrets"
-  default     = "quickslot-06"
+  default     = "quickslot-001"
 }
 
 variable "app_config_secret_recovery_window_in_days" {
@@ -388,8 +388,8 @@ variable "app_config_secret_values" {
     RAZORPAY_KEY_ID     = string
     RAZORPAY_KEY_SECRET = string
     RAZORPAY_CURRENCY   = string
-    GEMINI_API_KEY      = optional(string, "")
-    GEMINI_MODEL        = optional(string, "gemini-2.5-flash")
+    BEDROCK_MODEL_ID    = optional(string, "amazon.nova-pro-v1:0")
+    BEDROCK_REGION      = optional(string, "us-east-1")
   })
   description = "JSON values written to the app config Secrets Manager secret when manage_app_config_secret_value is true."
   sensitive   = true
@@ -403,8 +403,8 @@ variable "app_config_secret_values" {
     RAZORPAY_KEY_ID     = "rzp_test_ShFFMxa9JkqmZu"
     RAZORPAY_KEY_SECRET = "1I4sLVIvCMWSTUlM5lCZm71j"
     RAZORPAY_CURRENCY   = "INR"
-    GEMINI_API_KEY      = ""
-    GEMINI_MODEL        = "gemini-2.5-flash"
+    BEDROCK_MODEL_ID    = "amazon.nova-pro-v1:0"
+    BEDROCK_REGION      = "us-east-1"
   }
 }
 
@@ -525,7 +525,7 @@ variable "agent_http_allowed_cidrs" {
 variable "agent_secret_name" {
   type        = string
   description = "Secrets Manager secret name the Agent validates by default"
-  default     = "quickslot-06"
+  default     = "quickslot-001"
 }
 
 variable "agent_iac_lambda_name" {

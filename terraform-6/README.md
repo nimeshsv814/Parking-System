@@ -107,11 +107,11 @@ terraform import aws_dynamodb_table.notifications smart-parking-notifications
 
 ## AWS Secrets Manager App Config
 
-By default, Terraform creates a Secrets Manager secret named `quickslot-06` and passes its ARN to the app tier:
+By default, Terraform creates a Secrets Manager secret named `quickslot-001` and passes its ARN to the app tier:
 
 ```hcl
 create_app_config_secret = true
-app_config_secret_name   = "quickslot-06"
+app_config_secret_name   = "quickslot-001"
 ```
 
 Terraform also creates a secret value version by default from `app_config_secret_values`, so the JSON can be retrieved from Secrets Manager after `terraform apply`:
@@ -127,25 +127,25 @@ Terraform also creates a secret value version by default from `app_config_secret
   "RAZORPAY_KEY_ID": "your-razorpay-key-id",
   "RAZORPAY_KEY_SECRET": "your-razorpay-key-secret",
   "RAZORPAY_CURRENCY": "INR",
-  "GEMINI_API_KEY": "your-gemini-api-key",
-  "GEMINI_MODEL": "gemini-2.5-flash"
+  "BEDROCK_MODEL_ID": "amazon.nova-pro-v1:0",
+  "BEDROCK_REGION": "us-east-1"
 }
 ```
 
 When `manage_app_config_secret_value = true`, Terraform stores these secret values in Terraform state. Protect the state file/backend carefully. Terraform grants the app EC2 role `secretsmanager:GetSecretValue`, and the app launch template fetches the JSON at boot to build the service env files.
 
-If you already have a secret named `quickslot-06`, keep Terraform from creating one and let Terraform look it up by name:
+If you already have a secret named `quickslot-001`, keep Terraform from creating one and let Terraform look it up by name:
 
 ```hcl
 create_app_config_secret = false
-app_config_secret_name   = "quickslot-06"
+app_config_secret_name   = "quickslot-001"
 ```
 
 You can also paste the ARN directly:
 
 ```hcl
 create_app_config_secret = false
-app_config_secret_arn    = "arn:aws:secretsmanager:us-east-1:<account-id>:secret:quickslot-06-xxxxxx"
+app_config_secret_arn    = "arn:aws:secretsmanager:us-east-1:<account-id>:secret:quickslot-001-xxxxxx"
 ```
 
 Terraform can create or update the JSON secret value version. These values are marked sensitive in Terraform output, but AWS secret values are still stored in Terraform state when this is enabled:
@@ -163,8 +163,8 @@ app_config_secret_values = {
   RAZORPAY_KEY_ID     = "your-razorpay-key-id"
   RAZORPAY_KEY_SECRET = "your-razorpay-key-secret"
   RAZORPAY_CURRENCY   = "INR"
-  GEMINI_API_KEY      = "your-gemini-api-key"
-  GEMINI_MODEL        = "gemini-2.5-flash"
+  BEDROCK_MODEL_ID    = "amazon.nova-pro-v1:0"
+  BEDROCK_REGION      = "us-east-1"
 }
 ```
 
@@ -175,7 +175,7 @@ Terraform can create a public Ubuntu EC2 instance for the Agent and a placeholde
 ```hcl
 enable_agent_instance = true
 agent_repo_url        = "https://github.com/nimeshsv814/Agent.git"
-agent_secret_name     = "quickslot-06"
+agent_secret_name     = "quickslot-001"
 agent_iac_lambda_name = "quickslot-iac-runner"
 ```
 

@@ -1,5 +1,5 @@
 const { recommendSlot } = require("./aiRecommendationService");
-const { generateJson, isGeminiEnabled } = require("./geminiService");
+const { generateJson, isBedrockEnabled } = require("./bedrockService");
 
 const VEHICLE_TYPES = [
   { id: "two-wheeler", label: "Two-wheeler" },
@@ -120,6 +120,18 @@ const assistantChatSchema = {
     refusalReason: { type: "STRING" },
     confidence: { type: "NUMBER" },
     nextAction: { type: "STRING" },
+    nearestResults: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          slotId: { type: "STRING" },
+          location: { type: "STRING" },
+          totalPrice: { type: "NUMBER" },
+          reason: { type: "STRING" },
+        },
+      },
+    },
   },
   required: ["reply", "vehicleType", "durationHours", "recommendedSlotId", "reason", "confidence", "nextAction"],
 };
@@ -253,6 +265,7 @@ const getFallbackAssistantChat = ({ message, slots, bookings, userId }) => {
       retrievedContext: {
         availableSlots: slots.filter((slot) => slot.status === "available").length,
         bookingHistoryRecords: bookings.length,
+        nearestResults: closestSlots,
         closestPriceOptions: closestSlots,
       },
     };
@@ -285,6 +298,7 @@ const getFallbackAssistantChat = ({ message, slots, bookings, userId }) => {
     retrievedContext: {
       availableSlots: slots.filter((slot) => slot.status === "available").length,
       bookingHistoryRecords: bookings.length,
+      nearestResults: closestSlots,
       closestPriceOptions: closestSlots,
       locationDemand: options.locations.slice(0, 5),
     },
@@ -292,10 +306,10 @@ const getFallbackAssistantChat = ({ message, slots, bookings, userId }) => {
 };
 
 const getAssistantChatResponse = async ({ message, slots, bookings, userId }) => {
-  if (!isGeminiEnabled()) {
+  if (!isBedrockEnabled()) {
     return {
       ...getFallbackAssistantChat({ message, slots, bookings, userId }),
-      aiError: "Gemini is not configured, so the assistant used local fallback scoring.",
+      aiError: "Bedrock is not configured, so the assistant used local fallback scoring.",
     };
   }
 
@@ -309,21 +323,28 @@ const getAssistantChatResponse = async ({ message, slots, bookings, userId }) =>
       budgetAmount: requestedBudgetAmount,
     });
     const result = await generateJson({
-      schema: assistantChatSchema,
       temperature: 0.25,
-      prompt: `You are Quickslot AI, an LLM parking assistant inside Quickslot smart parking.
-This is a RAG-style task: use only the retrieved live application context below, not generic assumptions.
-Understand the user's natural language request, infer vehicle type and duration when possible, compare available slots, historical booking pressure, current demand, price, and location.
-Recommend one currently available slot only when the retrieved context supports the user's request.
-Do not copy a precomputed rule-based recommendation. Make the decision from the retrieved context yourself.
-Supported vehicle types are only "two-wheeler" and "four-wheeler".
-If the user asks for a price or budget, treat it as the maximum total booking amount for the requested duration. Do not recommend any slot whose total price exceeds that budget.
-If no available slot is within the requested budget, do not recommend a slot. Instead say Quickslot does not have that price and list the closest available options from closestPriceOptions with their prices.
-If the user asks for an unsupported vehicle, a location that is not present in retrieved context, a specific unavailable slot, a duration outside 1-24 hours, or anything not answerable from retrieved Quickslot data, do not recommend a different slot.
-In those cases set recommendedSlotId to an empty string, confidence to 0, nextAction to "ASK_DETAILS" or "NO_SLOT_AVAILABLE", and explain the exact data limitation in reply, reason, and refusalReason.
-If you recommend a slot, recommendedSlotId must exactly match one slotId from retrieved Quickslot context where status is "available".
-Return only JSON matching this schema:
-{"reply":"string","vehicleType":"two-wheeler|four-wheeler","durationHours":1,"preferredLocation":"string","recommendedSlotId":"string","reason":"string","refusalReason":"string","confidence":0.0,"nextAction":"ASK_DETAILS|SUGGEST_SLOT|PROCEED_TO_PAYMENT|NO_SLOT_AVAILABLE"}
+      prompt: `You are QuickSlot AI, a conversational parking assistant inside the QuickSlot smart parking app.
+Talk naturally like a helpful chat assistant, not like predefined if/else text.
+Use only the retrieved live QuickSlot context below. Do not invent slots, locations, prices, availability, bookings, or policy.
+
+Your job:
+1. Understand the user's message in natural language.
+2. Infer vehicle type, duration, location, budget, or booking intent when possible.
+3. Answer conversationally based on live slot, demand, price, and booking context.
+4. Recommend a currently available slot only when the retrieved data supports it.
+5. If the exact request cannot be satisfied, clearly say that QuickSlot cannot get an exact output for that query and then provide the nearest/closest available results from closestPriceOptions or locationDemand.
+6. If the query is outside parking/booking/payment/demand context or cannot be answered from retrieved data, say you cannot determine it from current QuickSlot data and suggest what detail the user should provide.
+
+Rules:
+- Supported vehicle types are only "two-wheeler" and "four-wheeler".
+- Budget means maximum total booking amount for the requested duration.
+- Do not recommend any slot whose total price exceeds the user's budget.
+- recommendedSlotId must be an available slotId from retrieved context, otherwise use an empty string.
+- nearestResults must contain closest useful options when exact output is unavailable.
+- nextAction must be one of "ASK_DETAILS", "SUGGEST_SLOT", "PROCEED_TO_PAYMENT", "NO_SLOT_AVAILABLE", "ANSWER_ONLY".
+- Return only valid JSON matching this shape:
+{"reply":"string","vehicleType":"two-wheeler|four-wheeler","durationHours":1,"preferredLocation":"string","recommendedSlotId":"string","reason":"string","refusalReason":"string","confidence":0.0,"nextAction":"ASK_DETAILS|SUGGEST_SLOT|PROCEED_TO_PAYMENT|NO_SLOT_AVAILABLE|ANSWER_ONLY","nearestResults":[{"slotId":"string","location":"string","totalPrice":0,"reason":"string"}]}
 
 User message:
 ${message}
@@ -351,9 +372,22 @@ ${JSON.stringify({
     const requestedRecommendation = String(result.recommendedSlotId || "").trim();
     const recommendedSlotId = availableSlotIds.has(requestedRecommendation) ? requestedRecommendation : null;
     const confidence = Math.min(1, Math.max(0, Number(result.confidence) || 0));
+    const nextAction = String(result.nextAction || "").trim() || "ANSWER_ONLY";
+    const modelTriedInvalidSlot = requestedRecommendation && !recommendedSlotId;
+    const nearestResults = Array.isArray(result.nearestResults) && result.nearestResults.length
+      ? result.nearestResults
+      : closestPriceOptions.map((slot) => ({
+          slotId: slot.slotId,
+          location: slot.location,
+          totalPrice: slot.totalPrice,
+          reason:
+            requestedBudgetAmount == null
+              ? "Closest currently available option."
+              : `Closest available option to Rs ${requestedBudgetAmount}.`,
+        }));
     const unavailableReply =
       result.refusalReason ||
-      result.reason ||
+      (modelTriedInvalidSlot ? result.reason : "") ||
       (requestedBudgetAmount == null
         ? "I cannot recommend a slot from the current Quickslot data for that request."
         : `We do not have an available slot within Rs ${requestedBudgetAmount}. Closest available option(s): ${closestPriceOptions
@@ -364,21 +398,24 @@ ${JSON.stringify({
       ...result,
       recommendedSlotId,
       confidence: recommendedSlotId ? confidence : 0,
-      nextAction: recommendedSlotId ? result.nextAction : "NO_SLOT_AVAILABLE",
-      reply: recommendedSlotId ? result.reply : unavailableReply,
-      reason: recommendedSlotId ? result.reason : unavailableReply,
-      aiProvider: "GEMINI",
+      nextAction: recommendedSlotId ? nextAction : modelTriedInvalidSlot ? "NO_SLOT_AVAILABLE" : nextAction,
+      reply: recommendedSlotId || !modelTriedInvalidSlot ? result.reply : unavailableReply,
+      reason: recommendedSlotId || !modelTriedInvalidSlot ? result.reason : unavailableReply,
+      refusalReason: recommendedSlotId ? "" : result.refusalReason || (modelTriedInvalidSlot ? unavailableReply : ""),
+      nearestResults,
+      aiProvider: "BEDROCK_NOVA",
       retrievedContext: {
         availableSlots: ragContext.availableSlots,
         bookingHistoryRecords: ragContext.recentBookings.length,
+        nearestResults,
         closestPriceOptions,
         locationDemand: ragContext.locationDemand.slice(0, 5),
       },
     };
   } catch (error) {
-    console.error("Gemini assistant chat fallback used:", error.response?.data || error.message);
+    console.error("Bedrock assistant chat fallback used:", error.response?.data || error.message);
     const fallback = getFallbackAssistantChat({ message, slots, bookings, userId });
-    return { ...fallback, aiError: "Gemini unavailable or returned invalid JSON" };
+    return { ...fallback, aiError: "Bedrock unavailable or returned invalid JSON" };
   }
 };
 

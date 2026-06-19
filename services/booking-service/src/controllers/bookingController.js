@@ -1,6 +1,6 @@
 const Booking = require("../models/Booking");
 const { internalHeaders, notificationClient, parkingClient } = require("../config/http");
-const { getGeminiPaymentRisk } = require("../services/geminiAiService");
+const { getBedrockPaymentRisk } = require("../services/bedrockAiService");
 
 const buildBookingId = () => `BKG-${Date.now()}${Math.floor(Math.random() * 1000)}`;
 const DEFAULT_BOOKING_AMOUNT = 50;
@@ -290,7 +290,7 @@ const expirePendingBookings = async (_req, res) => {
         continue;
       }
 
-      const risk = await getGeminiPaymentRisk({
+      const risk = await getBedrockPaymentRisk({
         booking,
         bookings: allBookings,
         holdMinutes: Number(process.env.BOOKING_HOLD_MINUTES || 10),

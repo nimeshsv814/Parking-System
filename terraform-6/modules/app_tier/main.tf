@@ -101,6 +101,20 @@ resource "aws_iam_role_policy" "app_dynamodb_policy" {
         Resource = [
           for log_group_arn in var.app_log_group_arns : "${log_group_arn}:*"
         ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "bedrock:Converse",
+          "bedrock:ConverseStream",
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream"
+        ]
+        Resource = [
+          "arn:aws:bedrock:${var.bedrock_region}::foundation-model/${var.bedrock_model_id}",
+          "arn:aws:bedrock:${var.bedrock_region}:*:inference-profile/${var.bedrock_model_id}",
+          "arn:aws:bedrock:${var.bedrock_region}:*:inference-profile/*"
+        ]
       }
       ],
       var.app_config_secret_arn != "" ? [
@@ -221,8 +235,8 @@ SEED_USER_PASSWORD_VALUE="$(secret_value SEED_USER_PASSWORD User@123)"
 RAZORPAY_KEY_ID_VALUE="$(secret_value RAZORPAY_KEY_ID rzp_test_ShFFMxa9JkqmZu)"
 RAZORPAY_KEY_SECRET_VALUE="$(secret_value RAZORPAY_KEY_SECRET 1I4sLVIvCMWSTUlM5lCZm71j)"
 RAZORPAY_CURRENCY_VALUE="$(secret_value RAZORPAY_CURRENCY INR)"
-GEMINI_API_KEY_VALUE="$(secret_value GEMINI_API_KEY '')"
-GEMINI_MODEL_VALUE="$(secret_value GEMINI_MODEL gemini-2.5-flash)"
+BEDROCK_MODEL_ID_VALUE="$(secret_value BEDROCK_MODEL_ID ${var.bedrock_model_id})"
+BEDROCK_REGION_VALUE="$(secret_value BEDROCK_REGION ${var.bedrock_region})"
 
 cat <<EOT > "$ENV_DIR/auth-service.env"
 PORT=4001
@@ -260,8 +274,9 @@ PARKING_SERVICE_URL=http://parking-service:4002
 NOTIFICATION_SERVICE_URL=http://notification-service:4006
 INTERNAL_API_KEY=$INTERNAL_API_KEY_VALUE
 BOOKING_HOLD_MINUTES=10
-GEMINI_API_KEY=$GEMINI_API_KEY_VALUE
-GEMINI_MODEL=$GEMINI_MODEL_VALUE
+AI_PROVIDER=bedrock
+BEDROCK_MODEL_ID=$BEDROCK_MODEL_ID_VALUE
+BEDROCK_REGION=$BEDROCK_REGION_VALUE
 EOT
 
 cat <<EOT > "$ENV_DIR/payment-service.env"

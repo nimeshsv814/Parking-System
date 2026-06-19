@@ -133,3 +133,11 @@ variable "sqs_notification_queue_url" {
 variable "sqs_notification_queue_arn" {
   type = string
 }
+
+variable "bedrock_model_id" {
+  type = string
+}
+
+variable "bedrock_region" {
+  type = string
+}

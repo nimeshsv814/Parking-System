@@ -98,6 +98,8 @@ module "app_tier" {
   aws_region                      = var.aws_region
   booking_service_image           = var.booking_service_image
   booking_table                   = var.booking_table
+  bedrock_model_id                = var.app_config_secret_values.BEDROCK_MODEL_ID
+  bedrock_region                  = var.app_config_secret_values.BEDROCK_REGION
   booking_cancelled_sns_topic_arn = var.enable_booking_sns_notifications ? module.booking_sns_notifications[0].booking_cancelled_topic_arn : ""
   booking_confirmed_sns_topic_arn = var.enable_booking_sns_notifications ? module.booking_sns_notifications[0].booking_confirmed_topic_arn : ""
   dynamodb_table_arns             = local.dynamodb_table_arns

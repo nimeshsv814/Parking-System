@@ -1,10 +1,10 @@
 const Booking = require("../models/Booking");
 const { internalHeaders, parkingClient } = require("../config/http");
 const {
-  getGeminiDemandPrediction,
-  getGeminiPaymentRisk,
-  getGeminiSlotRecommendation,
-} = require("../services/geminiAiService");
+  getBedrockDemandPrediction,
+  getBedrockPaymentRisk,
+  getBedrockSlotRecommendation,
+} = require("../services/bedrockAiService");
 const {
   getAssistantChatResponse,
   getAssistantOptions,
@@ -19,7 +19,7 @@ const getSlots = async () => {
 const getRecommendation = async (req, res) => {
   try {
     const [slots, bookings] = await Promise.all([getSlots(), Booking.listBookings({ isAdmin: true })]);
-    const recommendation = await getGeminiSlotRecommendation({
+    const recommendation = await getBedrockSlotRecommendation({
       slots,
       bookings,
       userId: req.user.id,
@@ -35,7 +35,7 @@ const getRecommendation = async (req, res) => {
 const getDemandPrediction = async (req, res) => {
   try {
     const [slots, bookings] = await Promise.all([getSlots(), Booking.listBookings({ isAdmin: true })]);
-    const predictions = await getGeminiDemandPrediction({
+    const predictions = await getBedrockDemandPrediction({
       slots,
       bookings,
       hours: Number(req.query.hours || 6),
@@ -59,7 +59,7 @@ const getPaymentRisk = async (req, res) => {
 
     const bookings = await Booking.listBookings({ isAdmin: true });
     return res.json(
-      await getGeminiPaymentRisk({
+      await getBedrockPaymentRisk({
         booking,
         bookings,
         holdMinutes: Number(process.env.BOOKING_HOLD_MINUTES || 10),

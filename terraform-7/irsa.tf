@@ -28,7 +28,7 @@ resource "aws_iam_role" "app_pods" {
 }
 
 resource "aws_iam_role_policy" "app_pods_dynamodb" {
-  name = "${var.cluster_name}-app-pods-dynamodb"
+  name = "${var.cluster_name}-app-pods-access"
   role = aws_iam_role.app_pods.id
 
   policy = jsonencode({
@@ -49,7 +49,89 @@ resource "aws_iam_role_policy" "app_pods_dynamodb" {
           "dynamodb:UpdateItem"
         ]
         Resource = concat(local.dynamodb_table_arns, local.dynamodb_table_index_arns)
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject"
+        ]
+        Resource = "${aws_s3_bucket.payment_invoices.arn}/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket"
+        ]
+        Resource = aws_s3_bucket.payment_invoices.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:DescribeKey",
+          "kms:Encrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = aws_kms_key.payment_invoices.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:DescribeSecret",
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = aws_secretsmanager_secret.app_config.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "sns:GetTopicAttributes",
+          "sns:Publish"
+        ]
+        Resource = [
+          aws_sns_topic.booking_confirmed.arn,
+          aws_sns_topic.booking_cancelled.arn,
+          aws_sns_topic.observability_alerts.arn
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:ChangeMessageVisibility",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:GetQueueUrl",
+          "sqs:ReceiveMessage",
+          "sqs:SendMessage"
+        ]
+        Resource = aws_sqs_queue.notification.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream",
+          "logs:DescribeLogStreams",
+          "logs:PutLogEvents"
+        ]
+        Resource = [
+          for log_group in aws_cloudwatch_log_group.app_services : "${log_group.arn}:*"
+        ]
       }
     ]
   })
+}
+
+resource "kubernetes_service_account" "app" {
+  metadata {
+    name      = "quickslot-app"
+    namespace = kubernetes_namespace.quickslot.metadata[0].name
+
+    annotations = {
+      "eks.amazonaws.com/role-arn" = aws_iam_role.app_pods.arn
+    }
+  }
+
+  automount_service_account_token = true
 }

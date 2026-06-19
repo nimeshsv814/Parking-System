@@ -1,5 +1,10 @@
 aws_region   = "us-east-1"
 cluster_name = "quickslot-eks"
+kubernetes_version = "1.30"
+
+ubuntu_eks_release     = "22.04"
+ubuntu_eks_arch        = "amd64"
+ubuntu_eks_volume_type = "ebs-gp2"
 
 frontend_image             = "docker.io/nimeshsv814/tf-frontend:v6.0.8"
 auth_service_image         = "docker.io/nimeshsv814/tf-auth-service:v4.0.0"
@@ -20,3 +25,31 @@ razorpay_key_secret = "replace-me"
 razorpay_currency   = "INR"
 gemini_api_key      = ""
 gemini_model        = "gemini-2.5-flash"
+
+payment_invoice_bucket_name          = ""
+payment_invoice_bucket_force_destroy = false
+
+app_config_secret_name       = "quickslot-07"
+manage_app_config_secret_value = false
+
+sqs_notification_queue_name      = "smart-parking-notifications-eks-queue"
+booking_confirmed_sns_topic_name = "quickslot-eks-booking-confirmed"
+booking_cancelled_sns_topic_name = "quickslot-eks-booking-cancelled"
+observability_sns_topic_name     = "quickslot-eks-observability-alerts"
+observability_alert_email_subscribers = []
+cloudwatch_log_retention_days = 14
+sqs_dlq_visible_alarm_threshold = 1
+sqs_oldest_message_age_alarm_seconds = 300
+dynamodb_throttled_requests_alarm_threshold = 1
+
+enable_invoice_eventbridge_notifications = true
+
+# Edge stack is optional. First apply EKS, get the ALB hostname, then set it here.
+enable_edge_stack              = false
+cloudfront_origin_domain_name  = ""
+app_domain_name                = ""
+cloudfront_certificate_arn     = ""
+create_route53_hosted_zone     = false
+route53_zone_domain_name       = ""
+route53_hosted_zone_id         = ""
+create_cloudfront_route53_alias_record = false

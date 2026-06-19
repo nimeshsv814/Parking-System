@@ -1,6 +1,6 @@
 const { recommendSlot } = require("./aiRecommendationService");
 const { predictDemand } = require("./demandPredictionService");
-const { generateJson, isGeminiEnabled } = require("./geminiService");
+const { generateJson, isBedrockEnabled } = require("./bedrockService");
 const { predictPaymentRisk } = require("./paymentRiskService");
 
 const compactBookings = (bookings, limit = 80) =>
@@ -25,17 +25,17 @@ const compactSlots = (slots) =>
     price: Number(slot.price) || 0,
   }));
 
-const withFallback = async (fallback, geminiCall) => {
-  if (!isGeminiEnabled()) {
+const withFallback = async (fallback, bedrockCall) => {
+  if (!isBedrockEnabled()) {
     return { ...fallback, aiProvider: "LOCAL_FALLBACK" };
   }
 
   try {
-    const result = await geminiCall();
-    return { ...fallback, ...result, aiProvider: "GEMINI" };
+    const result = await bedrockCall();
+    return { ...fallback, ...result, aiProvider: "BEDROCK_NOVA" };
   } catch (error) {
-    console.error("Gemini AI fallback used:", error.response?.data || error.message);
-    return { ...fallback, aiProvider: "LOCAL_FALLBACK", aiError: "Gemini unavailable or returned invalid JSON" };
+    console.error("Bedrock AI fallback used:", error.response?.data || error.message);
+    return { ...fallback, aiProvider: "LOCAL_FALLBACK", aiError: "Bedrock unavailable or returned invalid JSON" };
   }
 };
 
@@ -82,11 +82,10 @@ const paymentRiskSchema = {
   required: ["bookingId", "riskLevel", "riskScore", "action"],
 };
 
-const getGeminiSlotRecommendation = async ({ slots, bookings, userId, durationHours }) => {
+const getBedrockSlotRecommendation = async ({ slots, bookings, userId, durationHours }) => {
   const fallback = recommendSlot({ slots, bookings, userId, durationHours });
   return withFallback(fallback, async () =>
     generateJson({
-      schema: recommendationSchema,
       prompt: `You are the AI decision engine for Quickslot, a smart parking system.
 Recommend exactly one best available slot for the user.
 Use only available slots. Consider location, floor/zone convenience, current status, historical booking frequency, peak-hour demand, requested duration, price, and pending payment risk.
@@ -105,7 +104,7 @@ ${JSON.stringify(compactBookings(bookings))}`,
     }).then((result) => {
       const availableSlotIds = new Set(slots.filter((slot) => slot.status === "available").map((slot) => slot.slotId));
       if (!availableSlotIds.has(result.recommendedSlotId)) {
-        throw new Error("Gemini recommended a slot that is not available");
+        throw new Error("Bedrock recommended a slot that is not available");
       }
       return {
         recommendedSlotId: result.recommendedSlotId,
@@ -116,11 +115,10 @@ ${JSON.stringify(compactBookings(bookings))}`,
   );
 };
 
-const getGeminiDemandPrediction = async ({ slots, bookings, hours }) => {
+const getBedrockDemandPrediction = async ({ slots, bookings, hours }) => {
   const fallback = predictDemand({ bookings, totalSlots: slots.length, hours });
   return withFallback({ predictions: fallback }, async () => {
     const result = await generateJson({
-      schema: demandSchema,
       prompt: `You are the AI demand prediction engine for Quickslot, a smart parking system.
 Predict parking demand for the next ${hours} hours.
 Use historical booking times, current active bookings, total slot count, peak/off-peak patterns, and unavailable slots.
@@ -146,11 +144,10 @@ ${JSON.stringify(compactBookings(bookings, 120))}`,
   }).then((result) => result.predictions.map((item) => ({ ...item, aiProvider: result.aiProvider })));
 };
 
-const getGeminiPaymentRisk = async ({ booking, bookings, holdMinutes }) => {
+const getBedrockPaymentRisk = async ({ booking, bookings, holdMinutes }) => {
   const fallback = predictPaymentRisk({ booking, bookings, holdMinutes });
   return withFallback(fallback, async () =>
     generateJson({
-      schema: paymentRiskSchema,
       prompt: `You are the AI payment-risk engine for Quickslot, a smart parking system.
 Predict whether this pending booking is likely to expire before payment.
 Consider time since booking was created, remaining time before expiry, user's previous payment success/failure history, booking amount, and peak-hour pressure.
@@ -176,7 +173,7 @@ ${JSON.stringify(compactBookings(bookings))}`,
 };
 
 module.exports = {
-  getGeminiDemandPrediction,
-  getGeminiPaymentRisk,
-  getGeminiSlotRecommendation,
+  getBedrockDemandPrediction,
+  getBedrockPaymentRisk,
+  getBedrockSlotRecommendation,
 };

@@ -23,7 +23,7 @@ resource "aws_iam_role_policy_attachment" "cluster_policy" {
 resource "aws_eks_cluster" "this" {
   name     = var.cluster_name
   role_arn = aws_iam_role.cluster.arn
-  version  = "1.30"
+  version  = var.kubernetes_version
 
   vpc_config {
     subnet_ids              = concat(aws_subnet.public[*].id, aws_subnet.private[*].id)
@@ -98,12 +98,58 @@ resource "aws_iam_role_policy" "node_app_access" {
   })
 }
 
+data "aws_ssm_parameter" "ubuntu_eks_ami" {
+  name = "/aws/service/canonical/ubuntu/eks/${var.ubuntu_eks_release}/${var.kubernetes_version}/stable/current/${var.ubuntu_eks_arch}/hvm/${var.ubuntu_eks_volume_type}/ami-id"
+}
+
+resource "aws_launch_template" "ubuntu_nodes" {
+  name_prefix = "${var.cluster_name}-ubuntu-node-"
+  image_id    = data.aws_ssm_parameter.ubuntu_eks_ami.value
+
+  user_data = base64encode(<<-USERDATA
+    MIME-Version: 1.0
+    Content-Type: multipart/mixed; boundary="//"
+
+    --//
+    Content-Type: text/x-shellscript; charset="us-ascii"
+
+    #!/bin/bash
+    set -o xtrace
+    /etc/eks/bootstrap.sh '${aws_eks_cluster.this.name}' \
+      --apiserver-endpoint '${aws_eks_cluster.this.endpoint}' \
+      --b64-cluster-ca '${aws_eks_cluster.this.certificate_authority[0].data}'
+    --//--
+  USERDATA
+  )
+
+  tag_specifications {
+    resource_type = "instance"
+
+    tags = {
+      Name        = "${var.cluster_name}-ubuntu-node"
+      Application = "smart-parking"
+      OS          = "ubuntu"
+    }
+  }
+
+  tags = {
+    Name        = "${var.cluster_name}-ubuntu-node-template"
+    Application = "smart-parking"
+    OS          = "ubuntu"
+  }
+}
+
 resource "aws_eks_node_group" "this" {
   cluster_name    = aws_eks_cluster.this.name
   node_group_name = "${var.cluster_name}-managed-ng"
   node_role_arn   = aws_iam_role.node.arn
   subnet_ids      = aws_subnet.private[*].id
   instance_types  = var.node_instance_types
+
+  launch_template {
+    id      = aws_launch_template.ubuntu_nodes.id
+    version = "$Latest"
+  }
 
   scaling_config {
     desired_size = var.node_desired_size
@@ -118,6 +164,7 @@ resource "aws_eks_node_group" "this" {
   tags = {
     Name        = "${var.cluster_name}-node-group"
     Application = "smart-parking"
+    OS          = "ubuntu"
   }
 
   depends_on = [
