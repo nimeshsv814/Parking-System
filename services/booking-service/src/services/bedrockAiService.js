@@ -1,4 +1,5 @@
 const { recommendSlot } = require("./aiRecommendationService");
+const { buildDemandFeatures } = require("./dynamoDemandFeatures");
 const { predictDemand } = require("./demandPredictionService");
 const { generateJson, isBedrockEnabled } = require("./bedrockService");
 const { predictPaymentRisk } = require("./paymentRiskService");
@@ -84,11 +85,13 @@ const paymentRiskSchema = {
 
 const getBedrockSlotRecommendation = async ({ slots, bookings, userId, durationHours }) => {
   const fallback = recommendSlot({ slots, bookings, userId, durationHours });
+  const demandFeatures = buildDemandFeatures({ slots, bookings });
   return withFallback(fallback, async () =>
     generateJson({
       prompt: `You are the AI decision engine for Quickslot, a smart parking system.
 Recommend exactly one best available slot for the user.
-Use only available slots. Consider location, floor/zone convenience, current status, historical booking frequency, peak-hour demand, requested duration, price, and pending payment risk.
+Use only available slots. Base demand reasoning only on the DynamoDB-derived demand features provided below.
+Consider location, current status, historical booking frequency, same-hour history, active pressure, cancellation/expiry pressure, requested duration, price, and pending payment risk.
 Return only JSON matching this schema:
 {"recommendedSlotId":"string","reason":"string","score":0.0}
 Score must be between 0 and 1.
@@ -100,7 +103,10 @@ Slots:
 ${JSON.stringify(compactSlots(slots))}
 
 Recent booking history:
-${JSON.stringify(compactBookings(bookings))}`,
+${JSON.stringify(compactBookings(bookings))}
+
+DynamoDB-derived demand features:
+${JSON.stringify(demandFeatures)}`,
     }).then((result) => {
       const availableSlotIds = new Set(slots.filter((slot) => slot.status === "available").map((slot) => slot.slotId));
       if (!availableSlotIds.has(result.recommendedSlotId)) {
@@ -116,12 +122,15 @@ ${JSON.stringify(compactBookings(bookings))}`,
 };
 
 const getBedrockDemandPrediction = async ({ slots, bookings, hours }) => {
-  const fallback = predictDemand({ bookings, totalSlots: slots.length, hours });
+  const demandFeatures = buildDemandFeatures({ slots, bookings });
+  const fallback = predictDemand({ slots, bookings, totalSlots: slots.length, hours });
   return withFallback({ predictions: fallback }, async () => {
     const result = await generateJson({
       prompt: `You are the AI demand prediction engine for Quickslot, a smart parking system.
 Predict parking demand for the next ${hours} hours.
-Use historical booking times, current active bookings, total slot count, peak/off-peak patterns, and unavailable slots.
+Use only the DynamoDB-derived slots/bookings features below.
+Do not use generic city traffic, assumptions, or hardcoded peak hours unless the DynamoDB booking records show same-hour demand.
+Demand level must be justified by activeSlotPressure, historicalPressure, sameHourPressure, availabilityRatio, and cancellationExpiryPressure.
 Return only a JSON array. Demand level must be LOW, MEDIUM, or HIGH.
 
 Context:
@@ -131,7 +140,10 @@ Slots:
 ${JSON.stringify(compactSlots(slots))}
 
 Recent booking history:
-${JSON.stringify(compactBookings(bookings, 120))}`,
+${JSON.stringify(compactBookings(bookings, 120))}
+
+DynamoDB-derived demand features:
+${JSON.stringify(demandFeatures)}`,
     });
     return {
       predictions: result.map((item, index) => ({

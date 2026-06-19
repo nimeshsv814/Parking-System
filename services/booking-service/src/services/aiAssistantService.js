@@ -1,5 +1,6 @@
 const { recommendSlot } = require("./aiRecommendationService");
 const { generateJson, isBedrockEnabled } = require("./bedrockService");
+const { buildDemandFeatures } = require("./dynamoDemandFeatures");
 
 const VEHICLE_TYPES = [
   { id: "two-wheeler", label: "Two-wheeler" },
@@ -158,6 +159,7 @@ const compactBookingsForRetrieval = (bookings, limit = 100) =>
 
 const buildRagContext = ({ slots, bookings }) => {
   const availableSlots = slots.filter((slot) => slot.status === "available");
+  const demandFeatures = buildDemandFeatures({ slots, bookings });
   const locations = Array.from(new Set(slots.map((slot) => normalizeLocation(slot.location)))).map((location) =>
     getLocationDemand({ location, slots, bookings })
   );
@@ -167,7 +169,9 @@ const buildRagContext = ({ slots, bookings }) => {
     totalSlots: slots.length,
     availableSlots: availableSlots.length,
     activeBookings: bookings.filter((booking) => ["pending", "confirmed"].includes(booking.status)).length,
-    locationDemand: locations.sort((left, right) => left.demandScore - right.demandScore),
+    locationDemand: demandFeatures.locationDemand,
+    legacyLocationDemand: locations.sort((left, right) => left.demandScore - right.demandScore),
+    demandFeatures,
     slots: compactSlotsForRetrieval(slots),
     recentBookings: compactBookingsForRetrieval(bookings),
   };
@@ -326,12 +330,13 @@ const getAssistantChatResponse = async ({ message, slots, bookings, userId }) =>
       temperature: 0.25,
       prompt: `You are QuickSlot AI, a conversational parking assistant inside the QuickSlot smart parking app.
 Talk naturally like a helpful chat assistant, not like predefined if/else text.
-Use only the retrieved live QuickSlot context below. Do not invent slots, locations, prices, availability, bookings, or policy.
+Use only the retrieved live QuickSlot context below. The context is built from DynamoDB slots and bookings tables.
+Do not invent slots, locations, prices, availability, bookings, demand, or policy.
 
 Your job:
 1. Understand the user's message in natural language.
 2. Infer vehicle type, duration, location, budget, or booking intent when possible.
-3. Answer conversationally based on live slot, demand, price, and booking context.
+3. Answer conversationally based on live slot, price, booking context, and DynamoDB-derived demandFeatures.
 4. Recommend a currently available slot only when the retrieved data supports it.
 5. If the exact request cannot be satisfied, clearly say that QuickSlot cannot get an exact output for that query and then provide the nearest/closest available results from closestPriceOptions or locationDemand.
 6. If the query is outside parking/booking/payment/demand context or cannot be answered from retrieved data, say you cannot determine it from current QuickSlot data and suggest what detail the user should provide.
@@ -339,6 +344,8 @@ Your job:
 Rules:
 - Supported vehicle types are only "two-wheeler" and "four-wheeler".
 - Budget means maximum total booking amount for the requested duration.
+- Demand must be LOW, MEDIUM, or HIGH based on demandFeatures only. Use activeSlotPressure, historicalPressure, sameHourPressure, availabilityRatio, and cancellationExpiryPressure.
+- If demandFeatures do not contain enough data for a confident demand answer, say that current DynamoDB data is limited and provide the nearest supported result.
 - Do not recommend any slot whose total price exceeds the user's budget.
 - recommendedSlotId must be an available slotId from retrieved context, otherwise use an empty string.
 - nearestResults must contain closest useful options when exact output is unavailable.
