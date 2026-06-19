@@ -6,10 +6,6 @@ variable "ami_id" {
   type = string
 }
 
-variable "key_name" {
-  type = string
-}
-
 variable "app_instance_type" {
   type = string
 }

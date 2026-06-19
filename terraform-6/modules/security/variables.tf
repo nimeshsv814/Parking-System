@@ -2,10 +2,6 @@ variable "vpc_id" {
   type = string
 }
 
-variable "ssh_port" {
-  type = number
-}
-
 variable "http_port" {
   type = number
 }

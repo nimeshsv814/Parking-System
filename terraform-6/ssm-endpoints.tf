@@ -41,6 +41,18 @@ resource "aws_security_group" "ssm_vpc_endpoints" {
     ]
   }
 
+  dynamic "ingress" {
+    for_each = var.enable_agent_instance ? [1] : []
+
+    content {
+      description     = "HTTPS from DevOps Co-Pilot Agent"
+      from_port       = 443
+      to_port         = 443
+      protocol        = "tcp"
+      security_groups = [aws_security_group.agent[0].id]
+    }
+  }
+
   egress {
     from_port   = 0
     to_port     = 0

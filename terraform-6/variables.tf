@@ -37,11 +37,6 @@ variable "db_private_subnets" {
   }
 }
 
-variable "ssh_port" {
-  type    = number
-  default = 22
-}
-
 variable "http_port" {
   type    = number
   default = 80
@@ -70,11 +65,6 @@ variable "backend_to" {
 variable "ami_id" {
   type    = string
   default = "ami-091138d0f0d41ff90"
-}
-
-variable "key_name" {
-  type    = string
-  default = "three-tier-arch"
 }
 
 variable "web_instance_type" {
@@ -359,7 +349,7 @@ variable "create_app_config_secret" {
 variable "app_config_secret_name" {
   type        = string
   description = "Name of the Secrets Manager secret Terraform creates for app runtime secrets"
-  default     = "quickslot-04"
+  default     = "quickslot-06"
 }
 
 variable "app_config_secret_recovery_window_in_days" {
@@ -506,4 +496,46 @@ variable "cloudfront_origin_custom_header_value" {
   description = "Optional custom header value CloudFront sends to the ALB origin"
   default     = ""
   sensitive   = true
+}
+
+variable "enable_agent_instance" {
+  type        = bool
+  description = "Create a public EC2 instance that runs the QuickSlot DevOps Co-Pilot Agent"
+  default     = true
+}
+
+variable "agent_repo_url" {
+  type        = string
+  description = "Git repository URL for the Agent application"
+  default     = "https://github.com/nimeshsv814/Agent.git"
+}
+
+variable "agent_instance_type" {
+  type        = string
+  description = "EC2 instance type for the Agent application"
+  default     = "t3.micro"
+}
+
+variable "agent_http_allowed_cidrs" {
+  type        = list(string)
+  description = "CIDR blocks allowed to access the Agent over public HTTP port 80"
+  default     = ["0.0.0.0/0"]
+}
+
+variable "agent_secret_name" {
+  type        = string
+  description = "Secrets Manager secret name the Agent validates by default"
+  default     = "quickslot-06"
+}
+
+variable "agent_iac_lambda_name" {
+  type        = string
+  description = "Lambda function name invoked by the Agent for guarded IaC requests"
+  default     = "quickslot-iac-runner"
+}
+
+variable "agent_default_log_minutes" {
+  type        = number
+  description = "Default CloudWatch Logs lookback window for Agent investigations"
+  default     = 30
 }

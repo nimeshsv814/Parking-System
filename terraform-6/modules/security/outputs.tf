@@ -1,7 +1,3 @@
-output "bastion_security_group_id" {
-  value = aws_security_group.bastion-host-sg.id
-}
-
 output "external_alb_security_group_id" {
   value = aws_security_group.externalALB-sg.id
 }

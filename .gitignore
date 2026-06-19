@@ -6,3 +6,22 @@ npm-debug.log*
 .env.local
 **/.env.local
 
+# Terraform local/runtime files
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform variable files can contain secrets.
+*.tfvars
+*.tfvars.json
+
+# Terraform-generated Lambda packages
+terraform-*/lambda/*.zip
+

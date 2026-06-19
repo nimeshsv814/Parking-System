@@ -64,11 +64,6 @@ moved {
 }
 
 moved {
-  from = aws_security_group.bastion-host-sg
-  to   = module.security.aws_security_group.bastion-host-sg
-}
-
-moved {
   from = aws_security_group.externalALB-sg
   to   = module.security.aws_security_group.externalALB-sg
 }
@@ -91,11 +86,6 @@ moved {
 moved {
   from = aws_security_group.db-sg
   to   = module.security.aws_security_group.db-sg
-}
-
-moved {
-  from = aws_instance.bastion-host
-  to   = module.bastion.aws_instance.bastion-host
 }
 
 moved {

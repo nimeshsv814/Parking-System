@@ -142,7 +142,6 @@ resource "aws_launch_template" "app" {
   name_prefix   = "smart-parking-app-"
   image_id      = var.ami_id
   instance_type = var.app_instance_type
-  key_name      = var.key_name
 
   iam_instance_profile {
     name = aws_iam_instance_profile.app_dynamodb_profile.name

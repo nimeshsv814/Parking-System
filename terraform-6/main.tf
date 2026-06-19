@@ -14,17 +14,7 @@ module "security" {
   backend_to   = var.backend_to
   db_port      = var.db_port
   http_port    = var.http_port
-  ssh_port     = var.ssh_port
   vpc_id       = module.network.vpc_id
-}
-
-module "bastion" {
-  source = "./modules/bastion"
-
-  ami_id                    = var.ami_id
-  bastion_security_group_id = module.security.bastion_security_group_id
-  key_name                  = var.key_name
-  public_subnet_1a_id       = module.network.public_subnet_ids["web-public-subnet-1a"]
 }
 
 module "load_balancers" {
@@ -112,7 +102,6 @@ module "app_tier" {
   booking_confirmed_sns_topic_arn = var.enable_booking_sns_notifications ? module.booking_sns_notifications[0].booking_confirmed_topic_arn : ""
   dynamodb_table_arns             = local.dynamodb_table_arns
   dynamodb_table_index_arns       = local.dynamodb_table_index_arns
-  key_name                        = var.key_name
   notification_service_image      = var.notification_service_image
   notification_table              = var.notification_table
   parking_service_image           = var.parking_service_image
@@ -135,7 +124,6 @@ module "web_tier" {
   ami_id                = var.ami_id
   frontend_image        = var.frontend_image
   internal_alb_dns_name = module.load_balancers.internal_alb_dns
-  key_name              = var.key_name
   public_subnet_ids     = values(module.network.public_subnet_ids)
   web_desired_capacity  = var.web_desired_capacity
   web_instance_type     = var.web_instance_type

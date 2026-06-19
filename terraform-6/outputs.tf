@@ -185,3 +185,18 @@ output "asg_notification_group_names" {
   description = "Auto Scaling Groups configured to send EC2 launch and terminate notifications"
   value       = var.enable_asg_email_notifications ? local.asg_notification_group_names : []
 }
+
+output "agent" {
+  description = "QuickSlot DevOps Co-Pilot Agent EC2 details"
+  value = var.enable_agent_instance ? {
+    instance_id = aws_instance.agent[0].id
+    public_ip   = aws_instance.agent[0].public_ip
+    url         = "http://${aws_instance.agent[0].public_ip}"
+    iam_role    = aws_iam_role.agent[0].name
+  } : null
+}
+
+output "agent_iac_lambda_name" {
+  description = "Lambda function invoked by the Agent for guarded IaC requests"
+  value       = aws_lambda_function.iac_runner.function_name
+}

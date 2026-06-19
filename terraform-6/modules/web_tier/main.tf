@@ -29,7 +29,6 @@ resource "aws_launch_template" "web" {
   name_prefix   = "smart-parking-web-"
   image_id      = var.ami_id
   instance_type = var.web_instance_type
-  key_name      = var.key_name
 
   iam_instance_profile {
     name = aws_iam_instance_profile.web_ssm_profile.name
