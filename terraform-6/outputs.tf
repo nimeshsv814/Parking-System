@@ -138,6 +138,17 @@ output "observability" {
   }
 }
 
+output "invoice_email_notifications" {
+  description = "Invoice PDF email notification resources"
+  value = var.enable_invoice_email_notifications ? {
+    lambda_name           = aws_lambda_function.invoice_emailer[0].function_name
+    eventbridge_rule_name = aws_cloudwatch_event_rule.payment_invoice_email_created[0].name
+    dlq_url               = aws_sqs_queue.invoice_emailer_dlq[0].url
+    ses_sender_email      = var.invoice_email_sender
+    presigned_url_expiry  = var.invoice_presigned_url_expiry_seconds
+  } : null
+}
+
 output "vpc_endpoints" {
   description = "VPC endpoints used by private app/data tiers for AWS service access"
   value = {

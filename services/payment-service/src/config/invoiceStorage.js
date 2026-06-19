@@ -99,6 +99,7 @@ const uploadPaymentInvoice = async ({ payment, booking, provider = "razorpay" })
       paymentId: String(payment.paymentId),
       bookingId: String(payment.bookingId),
       userId: String(payment.userId),
+      email: String(booking.userEmail || payment.userEmail || payment.userId || ""),
     },
   });
 

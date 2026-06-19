@@ -142,7 +142,7 @@ variable "parking_service_image" {
 
 variable "booking_service_image" {
   type    = string
-  default = "docker.io/nimeshsv814/tf-booking-service:v7.0.0"
+  default = "docker.io/nimeshsv814/tf-booking-service:v7.0.1"
 }
 
 variable "payment_service_image" {
@@ -314,6 +314,24 @@ variable "enable_invoice_eventbridge_notifications" {
   type        = bool
   description = "Publish S3 payment invoice PDF creation events to the observability SNS topic through EventBridge"
   default     = true
+}
+
+variable "enable_invoice_email_notifications" {
+  type        = bool
+  description = "Send invoice download emails with SES when payment invoice PDFs are created in S3"
+  default     = true
+}
+
+variable "invoice_email_sender" {
+  type        = string
+  description = "Verified SES sender email identity used for invoice notifications"
+  default     = "no-reply@quickslot.site"
+}
+
+variable "invoice_presigned_url_expiry_seconds" {
+  type        = number
+  description = "Expiry in seconds for invoice S3 pre-signed download URLs"
+  default     = 86400
 }
 
 variable "payment_invoice_bucket_name" {

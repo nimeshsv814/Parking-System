@@ -228,6 +228,18 @@ Terraform will then:
 - add an SQS queue policy that allows those SNS topics to send messages
 - output whether the bridge is active as `booking_sns_to_sqs_subscription_enabled`
 
+## Invoice Email Notifications
+
+Terraform can send invoice emails when the payment service uploads a PDF invoice to the KMS-encrypted S3 bucket:
+
+```hcl
+enable_invoice_email_notifications = true
+invoice_email_sender               = "no-reply@quickslot.site"
+invoice_presigned_url_expiry_seconds = 86400
+```
+
+The flow is S3 Object Created -> EventBridge -> `quickslot-invoice-emailer` Lambda -> SES email with a pre-signed invoice download link. The SES sender email must be verified before AWS can deliver mail. If the AWS account is still in SES sandbox, recipient emails must also be verified.
+
 Optional static email subscribers can be added with:
 
 ```hcl
